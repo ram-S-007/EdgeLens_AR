@@ -400,20 +400,6 @@ function log(message) {
     console.log(`[EdgeLens AR] ${new Date().toISOString()}: ${message}`);
 }
 
-// Enhance image data for better QR detection (grayscale and threshold)
-function enhanceImageData(imageData) {
-    const data = imageData.data;
-    for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        const threshold = 128; // Adjust threshold for better contrast
-        const binary = avg < threshold ? 0 : 255;
-        data[i] = binary;
-        data[i + 1] = binary;
-        data[i + 2] = binary;
-    }
-    return imageData;
-}
-
 // Start QR scanning
 async function startQRScan() {
     log('Starting QR scan process...');
@@ -449,24 +435,20 @@ function forceCapture() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    imageData = enhanceImageData(imageData);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: 'attemptBoth',
         findBestPattern: true,
         quietZoneSize: 5
     });
 
-    if (code && code.data.trim() === specificQR) {
+    if (code) {
         log(`Force capture detected QR: ${code.data}`);
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
         showResult('✅ QR detected: appliance', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
-    } else if (code) {
-        log(`Force capture detected non-matching QR: ${code.data}`);
-        showResult(`❌ Detected QR: ${code.data} (not matching expected). Please try again with the correct QR.`, 'error');
     } else {
         log('Force capture failed to detect QR.');
         showResult('❌ No QR detected. Adjust position or clarity and try again.', 'error');
@@ -483,8 +465,7 @@ function scanQR() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    imageData = enhanceImageData(imageData);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     log(`Scanning frame: ${canvas.width}x${canvas.height} pixels...`);
 
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
@@ -502,39 +483,16 @@ function scanQR() {
         showResult('✅ QR detected: appliance', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
-    } else if (code) {
-        log(`Detected non-matching QR: ${code.data}`);
     } else {
-        log('No QR detected in this frame.');
+        const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
+        const x = (canvas.width - frameSize) / 2;
+        const y = (canvas.height - frameSize) / 2;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#ff6b35';
+        ctx.strokeRect(x, y, frameSize, frameSize);
+        requestAnimationFrame(scanQR);
     }
-
-    const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
-    const x = (canvas.width - frameSize) / 2;
-    const y = (canvas.height - frameSize) / 2;
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = '#ff6b35';
-    ctx.strokeRect(x, y, frameSize, frameSize);
-    requestAnimationFrame(scanQR);
-}
-
-// Close scan
-function closeScan() {
-    log('Closing scan process...');
-    document.getElementById('scannerOverlay').style.display = 'none';
-    document.getElementById('forceCaptureBtn').style.display = 'none';
-    document.getElementById('scanBtn').disabled = false;
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-    }
-    video.style.display = 'none';
-    canvas.style.display = 'none';
-    isScanning = false;
-    arMode = false;
-    document.body.classList.remove('ar-mode');
-    document.getElementById('resultContainer').innerHTML = '';
-    document.getElementById('sensorContainer').innerHTML = '';
-    document.getElementById('aiContainer').innerHTML = '';
-    log('Scan process closed and reset.');
 }
 
 // Detect appliance using AI
