@@ -71,7 +71,7 @@
             text-align: center;
         }
 
-        .scan-btn {
+        .scan-btn, .force-capture-btn {
             background: linear-gradient(135deg, #ff6b35, #f7931e);
             color: white;
             border: none;
@@ -85,12 +85,12 @@
             box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
         }
 
-        .scan-btn:hover {
+        .scan-btn:hover, .force-capture-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
         }
 
-        .scan-btn:disabled {
+        .scan-btn:disabled, .force-capture-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
             transform: none;
@@ -309,7 +309,7 @@
                 width: 200px;
                 height: 200px;
             }
-            .scan-btn {
+            .scan-btn, .force-capture-btn {
                 font-size: 1em;
                 padding: 12px 20px;
             }
@@ -331,6 +331,7 @@
             <h3>🔍 QR Scanner</h3>
             <input type="text" class="qr-input" id="applianceId" placeholder="Appliance ID will appear here..." readonly>
             <button class="scan-btn" id="scanBtn">📱 Scan QR Code</button>
+            <button class="force-capture-btn" id="forceCaptureBtn" style="display: none;">🔍 Force Capture</button>
             <button class="history-btn" onclick="showHistory()">📊 View History</button>
         </div>
 
@@ -348,7 +349,7 @@
 
 <script>
 const apiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual Gemini API key
-const specificQR = 'diagnostic_mode'; // Replace with exact QR value from your image
+const specificQR = 'diagnostic_mode'; // Replace with exact QR value from your QR code
 const applianceIssues = [
     {
         issue: "Won't turn on",
@@ -392,8 +393,9 @@ let video = document.getElementById('video');
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
 let stream = null;
+let lastCapture = null;
 
-// Logging function for debugging
+// Logging function
 function log(message) {
     console.log(`[EdgeLens AR] ${new Date().toISOString()}: ${message}`);
 }
@@ -403,6 +405,7 @@ async function startQRScan() {
     log('Starting QR scan process...');
     document.getElementById('scannerOverlay').style.display = 'flex';
     document.getElementById('scanBtn').disabled = true;
+    document.getElementById('forceCaptureBtn').style.display = 'block';
 
     try {
         log('Requesting camera permission...');
@@ -424,26 +427,32 @@ async function startQRScan() {
     }
 }
 
-// Close scanning and reset
-function closeScan() {
-    log('Closing scan process...');
-    document.getElementById('scannerOverlay').style.display = 'none';
-    document.getElementById('scanBtn').disabled = false;
-    if (stream) {
-        stream.getTracks().forEach(track => {
-            log(`Stopping track: ${track.kind}`);
-            track.stop();
-        });
+// Force capture QR
+function forceCapture() {
+    log('Force capture triggered...');
+    if (!isScanning || !video.readyState) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth',
+        findBestPattern: true,
+        quietZoneSize: 5
+    });
+
+    if (code) {
+        log(`Force capture detected QR: ${code.data}`);
+        isScanning = false;
+        document.getElementById('applianceId').value = code.data;
+        showResult('✅ QR detected: appliance', 'success');
+        document.getElementById('scannerOverlay').style.display = 'none';
+        detectAppliance();
+    } else {
+        log('Force capture failed to detect QR.');
+        showResult('❌ No QR detected. Adjust position or clarity and try again.', 'error');
     }
-    video.style.display = 'none';
-    canvas.style.display = 'none';
-    isScanning = false;
-    arMode = false;
-    document.body.classList.remove('ar-mode');
-    document.getElementById('resultContainer').innerHTML = '';
-    document.getElementById('sensorContainer').innerHTML = '';
-    document.getElementById('aiContainer').innerHTML = '';
-    log('Scan process closed and reset.');
 }
 
 // QR scanning loop
@@ -461,11 +470,14 @@ function scanQR() {
 
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: 'attemptBoth',
-        findBestPattern: true
+        findBestPattern: true,
+        quietZoneSize: 5,
+        maxScanAttempts: 10
     });
 
-    if (code && code.data.trim() === specificQR) {
+    if (code && code.data.trim() === specificQR && (!lastCapture || Date.now() - lastCapture > 2000)) {
         log(`QR code detected: ${code.data}`);
+        lastCapture = Date.now();
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
         showResult('✅ QR detected: appliance', 'success');
@@ -488,7 +500,7 @@ async function detectAppliance() {
     log('Initiating appliance detection with AI...');
     showResult('🔄 Analyzing camera feed with AI...', 'info');
 
-    const base64Image = canvas.toDataURL('image/jpeg', 0.6).split(',')[1]; // Lower quality for performance
+    const base64Image = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
     log(`Image data prepared, size reduced to 0.6 quality`);
 
     try {
@@ -786,6 +798,7 @@ window.onload = function() {
     log('Application initialized...');
     showResult('👋 Welcome! Press "Scan QR Code" to begin.', 'info');
     document.getElementById('scanBtn').addEventListener('click', startQRScan);
+    document.getElementById('forceCaptureBtn').addEventListener('click', forceCapture);
 };
 </script>
 </body>
