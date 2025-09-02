@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>EdgeLens AR Diagnostics</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>EdgeLens Agentic AR - Device Diagnostics</title>
     <style>
         * {
             margin: 0;
@@ -14,867 +15,236 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            color: #333;
-            overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .container {
-            max-width: 420px;
-            margin: 0 auto;
-            padding: 15px;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(15px);
-            border-radius: 25px;
-            padding: 30px 25px;
-            text-align: center;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .header h1 {
-            background: linear-gradient(135deg, #ff6b35, #f7931e);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 8px;
-            font-size: 1.9em;
-            font-weight: 700;
-        }
-
-        .header p {
-            color: #666;
-            font-size: 0.95em;
-            font-weight: 500;
-        }
-
-        .appliance-icon {
-            font-size: 3.5em;
-            margin-bottom: 15px;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .status-card {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-        }
-
-        .qr-input {
-            width: 100%;
-            padding: 15px 20px;
-            border: 2px solid #e0e0e0;
-            border-radius: 15px;
-            font-size: 1em;
-            margin-bottom: 20px;
-            text-align: center;
-            background: #fafafa;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .qr-input:focus {
-            border-color: #ff6b35;
-            outline: none;
-            background: white;
-        }
-
-        .scan-btn, .history-btn {
-            background: linear-gradient(135deg, #ff6b35, #f7931e);
-            color: white;
-            border: none;
-            padding: 18px 30px;
-            border-radius: 15px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 15px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-            position: relative;
+            background: #000;
             overflow: hidden;
+            height: 100vh;
+            position: relative;
         }
 
-        .history-btn {
-            background: linear-gradient(135deg, #2196f3, #1976d2);
-            box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
-        }
-
-        .scan-btn:hover, .history-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.5);
-        }
-
-        .history-btn:hover {
-            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.5);
-        }
-
-        .scan-btn:disabled {
-            background: linear-gradient(135deg, #ccc, #999);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        /* Camera Overlay */
-        .camera-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            z-index: 1000;
-        }
-
-        #video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        #camera {
+            width: 100vw;
+            height: 100vh;
             object-fit: cover;
-            z-index: 999;
-        }
-
-        #canvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1001;
-            pointer-events: none;
         }
 
-        .scanner-frame {
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .ui-overlay {
+            position: fixed;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        #qr-status {
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 15px 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+            border: 2px solid rgba(0, 255, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        #diagnosis-panel {
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.9));
+            color: #fff;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+            transform: translateY(100px);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        #diagnosis-panel.show {
+            display: block;
+            transform: translateY(0);
+        }
+
+        .diagnosis-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .device-icon {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(45deg, #007AFF, #34C759);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        .issue-description {
+            background: rgba(255, 59, 48, 0.1);
+            border-left: 4px solid #FF3B30;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .sensor-data {
+            background: rgba(0, 122, 255, 0.1);
+            border-left: 4px solid #007AFF;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .sensor-reading {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 14px;
+        }
+
+        .ai-suggestion {
+            background: rgba(52, 199, 89, 0.1);
+            border-left: 4px solid #34C759;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-confirm {
+            background: linear-gradient(45deg, #34C759, #30D158);
+            color: white;
+        }
+
+        .btn-deny {
+            background: linear-gradient(45deg, #FF3B30, #FF453A);
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-color: rgba(0, 255, 0, 0.3); }
+            50% { border-color: rgba(0, 255, 0, 0.8); }
+            100% { border-color: rgba(0, 255, 0, 0.3); }
+        }
+
+        .scanning-indicator {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 280px;
-            height: 280px;
-            border: 3px solid #ff6b35;
-            border-radius: 20px;
-            z-index: 1002;
-        }
-
-        .scanner-line {
-            position: absolute;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #ff6b35, transparent);
-            animation: scan 2s ease-in-out infinite;
-        }
-
-        @keyframes scan {
-            0%, 100% { top: 10px; opacity: 0; }
-            50% { top: 50%; opacity: 1; }
-        }
-
-        .close-camera {
-            position: absolute;
-            top: 40px;
-            right: 20px;
-            background: rgba(255, 107, 53, 0.9);
-            color: white;
-            border: none;
-            padding: 12px 18px;
+            width: 200px;
+            height: 200px;
+            border: 3px solid rgba(0, 255, 0, 0.3);
             border-radius: 12px;
-            cursor: pointer;
-            z-index: 1003;
-            font-weight: 600;
-            backdrop-filter: blur(10px);
+            z-index: 50;
         }
 
-        /* Live Feed Messages */
-        .live-message {
+        .scanning-indicator::before {
+            content: '';
             position: absolute;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 20px 30px;
-            border-radius: 15px;
-            text-align: center;
-            z-index: 1002;
-            backdrop-filter: blur(10px);
-            max-width: 90%;
-            animation: messageSlide 0.5s ease-out;
-            font-size: 16px;
-            line-height: 1.4;
-        }
-
-        @keyframes messageSlide {
-            from { transform: translateX(-50%) translateY(50px); opacity: 0; }
-            to { transform: translateX(-50%) translateY(0); opacity: 1; }
-        }
-
-        /* Interactive Buttons */
-        .interactive-buttons {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 15px;
-            z-index: 1003;
-        }
-
-        .yes-btn, .no-btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 25px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            font-size: 16px;
-        }
-
-        .yes-btn {
-            background: rgba(76, 175, 80, 0.9);
-            color: white;
-        }
-
-        .no-btn {
-            background: rgba(244, 67, 54, 0.9);
-            color: white;
-        }
-
-        .yes-btn:hover, .no-btn:hover {
-            transform: scale(1.05);
-        }
-
-        /* Detection Box */
-        .detection-box {
-            position: absolute;
-            border: 3px solid #4caf50;
-            border-radius: 10px;
-            background: rgba(76, 175, 80, 0.1);
-            z-index: 1001;
-            animation: detectPulse 2s infinite;
-        }
-
-        .detection-label {
-            position: absolute;
-            top: -35px;
+            top: 0;
             left: 0;
-            background: #4caf50;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 14px;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00FF00, transparent);
+            animation: scan-line 2s ease-in-out infinite;
         }
 
-        @keyframes detectPulse {
-            0%, 100% { opacity: 0.8; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.02); }
+        @keyframes scan-line {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(196px); }
         }
 
-        /* Result Cards */
-        .result-card {
-            padding: 18px;
-            border-radius: 15px;
-            margin: 15px 0;
-            animation: slideIn 0.5s ease-out;
-            border-left: 5px solid;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .result-card.success {
-            background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
-            border-color: #4caf50;
-            color: #2e7d32;
-        }
-
-        .result-card.error {
-            background: linear-gradient(135deg, #ffebee, #ffcdd2);
-            border-color: #f44336;
-            color: #c62828;
-        }
-
-        .result-card.info {
-            background: linear-gradient(135deg, #fff8e1, #fff3c4);
-            border-color: #ffc107;
-            color: #f57f17;
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 480px) {
-            .container { padding: 10px; }
-            .header { padding: 25px 20px; }
-            .header h1 { font-size: 1.6em; }
-            .scanner-frame { width: 240px; height: 240px; }
-            .live-message { bottom: 80px; padding: 15px 20px; font-size: 14px; }
-            .interactive-buttons { bottom: 20px; }
-            .yes-btn, .no-btn { padding: 10px 20px; font-size: 14px; }
+        .unknown-device {
+            color: #FF9500;
+            background: rgba(255, 149, 0, 0.1);
+            border-left: 4px solid #FF9500;
         }
     </style>
 </head>
 <body>
-    <video id="video" playsinline muted></video>
-    <canvas id="canvas"></canvas>
-
-    <div class="container" id="mainContainer">
-        <div class="header">
-            <div class="appliance-icon">🔧</div>
-            <h1>EdgeLens AR Diagnostics</h1>
-            <p>AI-Powered Appliance Health Monitor</p>
-        </div>
-
-        <div class="status-card">
-            <h3 style="margin-bottom: 20px; color: #333;">🔍 Smart Appliance Scanner</h3>
-            <input type="text" class="qr-input" id="applianceId" placeholder="Point camera at appliance QR code..." readonly>
-            <button class="scan-btn" id="scanBtn">📱 Start Diagnostic Scan</button>
-            <button class="history-btn" id="historyBtn">📊 View History</button>
-        </div>
-
-        <div id="resultContainer"></div>
+    <video id="camera" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div class="scanning-indicator" id="scan-indicator"></div>
+    
+    <div class="ui-overlay" id="qr-status">
+        🔍 Position QR code within the frame to identify device
     </div>
-
-    <div class="camera-overlay" id="cameraOverlay">
-        <button class="close-camera" id="closeCamera">✕ Close</button>
+    
+    <div class="ui-overlay" id="diagnosis-panel">
+        <div class="diagnosis-header">
+            <div class="device-icon">🔧</div>
+            <div id="device-name">Device Diagnosis</div>
+        </div>
         
-        <div class="scanner-frame">
-            <div class="scanner-line"></div>
+        <div class="issue-description" id="issue-info">
+            <!-- Issue will be populated here -->
         </div>
-
-        <div id="liveMessage" class="live-message" style="display: none;">
-            Ready to scan - Point camera at QR code
+        
+        <div class="sensor-data" id="sensor-info">
+            <!-- Sensor readings will be populated here -->
         </div>
-
-        <div id="interactiveButtons" class="interactive-buttons" style="display: none;">
-            <button class="yes-btn" id="yesBtn">✓ Yes</button>
-            <button class="no-btn" id="noBtn">✗ No</button>
+        
+        <div class="ai-suggestion" id="ai-response">
+            <!-- AI suggestion will be populated here -->
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-confirm" onclick="handleUserResponse(true)">✓ Accurate</button>
+            <button class="btn btn-deny" onclick="handleUserResponse(false)">✗ Re-analyze</button>
         </div>
     </div>
 
-<script>
-console.log('Script loading...');
-
-// Global variables
-let diagnosticHistory = [];
-let currentStep = 'idle';
-let detectedAppliance = null;
-let currentIssue = null;
-let stream = null;
-let isScanning = false;
-let scanInterval = null;
-
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-
-const kettleIssues = [
-    {
-        id: 'power_failure',
-        issue: "Won't turn on",
-        description: "Power connection or internal circuitry failure",
-        sensorType: "voltage",
-        normalRange: "220-240V",
-        detectedValue: "185V",
-        question: "Is the kettle completely unresponsive when you press the power button?",
-        overlay: "Check power connection"
-    },
-    {
-        id: 'heating_slow',
-        issue: "Takes too long to boil",
-        description: "Heating element efficiency degraded",
-        sensorType: "temperature",
-        normalRange: "95-100°C",
-        detectedValue: "78°C",
-        question: "Does the water take more than 8 minutes to boil?",
-        overlay: "Temperature sensor reading"
-    },
-    {
-        id: 'overheating',
-        issue: "Overheating detected",
-        description: "Temperature regulation malfunction",
-        sensorType: "temperature", 
-        normalRange: "95-100°C",
-        detectedValue: "118°C",
-        question: "Does the kettle get extremely hot on the outside during use?",
-        overlay: "Critical temperature detected"
-    },
-    {
-        id: 'leaking',
-        issue: "Leaking from the body",
-        description: "Seal degradation or structural damage",
-        sensorType: "pressure",
-        normalRange: "1.2-1.5 atm",
-        detectedValue: "0.8 atm",
-        question: "Do you see water leaking from the base or sides of the kettle?",
-        overlay: "Pressure leak detected"
-    },
-    {
-        id: 'auto_shutoff',
-        issue: "Auto-shutoff not working",
-        description: "Safety system malfunction",
-        sensorType: "control_signal",
-        normalRange: "3.3-5V",
-        detectedValue: "7.2V",
-        question: "Does the kettle continue heating even after water boils?",
-        overlay: "Safety circuit failure"
-    }
-];
-
-function log(message) {
-    console.log(`[EdgeLens] ${new Date().toISOString()}: ${message}`);
-}
-
-function showLiveMessage(message, showButtons = false) {
-    log(`Showing live message: ${message}`);
-    const messageEl = document.getElementById('liveMessage');
-    const buttonsEl = document.getElementById('interactiveButtons');
-    
-    if (messageEl && buttonsEl) {
-        messageEl.innerHTML = message.replace(/\n/g, '<br>');
-        messageEl.style.display = 'block';
-        buttonsEl.style.display = showButtons ? 'flex' : 'none';
-    }
-}
-
-function hideLiveMessage() {
-    const messageEl = document.getElementById('liveMessage');
-    const buttonsEl = document.getElementById('interactiveButtons');
-    
-    if (messageEl && buttonsEl) {
-        messageEl.style.display = 'none';
-        buttonsEl.style.display = 'none';
-    }
-}
-
-async function startScan() {
-    log('Starting diagnostic scan...');
-    
-    try {
-        currentStep = 'scanning';
-        
-        // Show camera overlay
-        const overlay = document.getElementById('cameraOverlay');
-        const scanBtn = document.getElementById('scanBtn');
-        
-        if (!overlay || !scanBtn) {
-            log('ERROR: Missing elements');
-            return;
-        }
-        
-        overlay.style.display = 'block';
-        scanBtn.disabled = true;
-        
-        log('Requesting camera access...');
-        
-        // Request camera permission with fallback
-        const constraints = {
-            video: { 
-                facingMode: { ideal: 'environment' },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        };
-        
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            log('Rear camera accessed successfully');
-        } catch (err) {
-            log('Rear camera failed, trying default camera');
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                log('Default camera accessed successfully');
-            } catch (err2) {
-                throw new Error('No camera access available');
-            }
-        }
-        
-        // Setup video
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            log('Video metadata loaded');
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 480;
-            log(`Canvas size: ${canvas.width}x${canvas.height}`);
-        };
-        
-        await video.play();
-        log('Video playing');
-        
-        isScanning = true;
-        showLiveMessage('🔍 Scanning for appliance QR code...');
-        
-        // Start scanning loop
-        scanInterval = setInterval(() => {
-            scanForQR();
-        }, 100);
-        
-        log('QR scanning started');
-        
-    } catch (err) {
-        log(`Camera error: ${err.message}`);
-        showResult('❌ Camera access required. Please allow camera permission and try again.', 'error');
-        closeScan();
-    }
-}
-
-function scanForQR() {
-    if (!isScanning || !video || video.readyState !== video.HAVE_ENOUGH_DATA) {
-        return;
-    }
-    
-    try {
-        // Draw video to canvas
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get image data for QR scanning
-        const scanSize = Math.min(canvas.width, canvas.height) * 0.8;
-        const x = (canvas.width - scanSize) / 2;
-        const y = (canvas.height - scanSize) / 2;
-        
-        const imageData = ctx.getImageData(x, y, scanSize, scanSize);
-        
-        // Scan for QR code
-        if (typeof jsQR !== 'undefined') {
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'attemptBoth'
-            });
-            
-            if (code && code.data) {
-                handleQRDetection(code.data);
-            }
-        }
-    } catch (err) {
-        log(`Scan error: ${err.message}`);
-    }
-}
-
-function handleQRDetection(qrData) {
-    log(`QR detected: ${qrData}`);
-    
-    // Stop scanning
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    
-    // Update input field
-    const applianceInput = document.getElementById('applianceId');
-    if (applianceInput) {
-        applianceInput.value = qrData;
-    }
-    
-    if (qrData === 'kettle:diagnostic_mode') {
-        showLiveMessage('✅ Kettle QR code detected! Confirming appliance...');
-        setTimeout(() => confirmAppliance('kettle'), 2000);
-    } else {
-        showLiveMessage(`❌ Unknown appliance QR: ${qrData}<br>Please scan a supported device.`);
-        // Restart scanning after 3 seconds
-        setTimeout(() => {
-            showLiveMessage('🔍 Scanning for appliance QR code...');
-            scanInterval = setInterval(() => {
-                scanForQR();
-            }, 100);
-        }, 3000);
-    }
-}
-
-function confirmAppliance(applianceType) {
-    log(`Confirming appliance: ${applianceType}`);
-    currentStep = 'confirming';
-    
-    // Draw detection box
-    drawDetectionBox();
-    
-    showLiveMessage('🔍 Analyzing appliance with AI vision...');
-    
-    // Simulate AI confirmation
-    setTimeout(() => {
-        detectedAppliance = applianceType;
-        showLiveMessage('✅ Smart kettle confirmed! Starting diagnostics...');
-        setTimeout(() => startDiagnostics(), 2000);
-    }, 3000);
-}
-
-function drawDetectionBox() {
-    const boxWidth = Math.min(canvas.width * 0.4, 200);
-    const boxHeight = Math.min(canvas.height * 0.3, 150);
-    const x = (canvas.width - boxWidth) / 2;
-    const y = (canvas.height - boxHeight) / 2;
-    
-    // Draw detection box on canvas
-    ctx.strokeStyle = '#4caf50';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x, y, boxWidth, boxHeight);
-    
-    // Draw label
-    ctx.fillStyle = '#4caf50';
-    ctx.fillRect(x, y - 30, 150, 25);
-    ctx.fillStyle = 'white';
-    ctx.font = '14px Arial';
-    ctx.fillText('Kettle Detected', x + 5, y - 10);
-}
-
-function startDiagnostics() {
-    log('Starting diagnostic process...');
-    currentStep = 'diagnosing';
-    
-    // Select random issue
-    currentIssue = kettleIssues[Math.floor(Math.random() * kettleIssues.length)];
-    log(`Selected issue: ${currentIssue.issue}`);
-    
-    showLiveMessage('🔬 Running sensor analysis...');
-    
-    setTimeout(() => {
-        // Show sensor reading
-        const sensorReading = `${currentIssue.sensorType.toUpperCase()}: ${currentIssue.detectedValue}<br>Normal: ${currentIssue.normalRange}<br><br>${currentIssue.overlay}`;
-        showLiveMessage(`⚠️ ${sensorReading}`);
-        
-        setTimeout(() => {
-            askUserQuestion();
-        }, 4000);
-    }, 3000);
-}
-
-function askUserQuestion() {
-    log('Asking user diagnostic question...');
-    currentStep = 'questioning';
-    
-    showLiveMessage(`❓ ${currentIssue.question}`, true);
-}
-
-function handleUserResponse(response) {
-    log(`User responded: ${response}`);
-    
-    if (response === 'yes') {
-        showLiveMessage('✅ Issue confirmed! Generating diagnostic report...');
-        setTimeout(() => {
-            completeDiagnostic(true);
-        }, 2000);
-    } else {
-        showLiveMessage('🔍 Issue not confirmed. Running additional tests...');
-        setTimeout(() => {
-            // Randomly select different issue or show no issues
-            if (Math.random() > 0.5) {
-                currentIssue = kettleIssues[Math.floor(Math.random() * kettleIssues.length)];
-                setTimeout(() => askUserQuestion(), 2000);
-            } else {
-                showLiveMessage('✅ No critical issues detected.<br>Appliance appears healthy.');
-                setTimeout(() => completeDiagnostic(false), 3000);
-            }
-        }, 2000);
-    }
-}
-
-function completeDiagnostic(issueFound) {
-    log('Completing diagnostic process...');
-    currentStep = 'complete';
-    
-    const diagnosticResult = {
-        appliance: detectedAppliance,
-        timestamp: new Date().toLocaleString(),
-        issue: issueFound ? currentIssue.issue : 'No issues detected',
-        severity: issueFound ? getSeverity(currentIssue.id) : 'Good',
-        sensorData: issueFound ? {
-            type: currentIssue.sensorType,
-            reading: currentIssue.detectedValue,
-            normalRange: currentIssue.normalRange
-        } : null
-    };
-    
-    // Save to history
-    diagnosticHistory.unshift(diagnosticResult);
-    if (diagnosticHistory.length > 10) diagnosticHistory.splice(10);
-    
-    if (issueFound) {
-        showLiveMessage(`🚨 ${currentIssue.issue}<br>Severity: ${getSeverity(currentIssue.id)}<br><br>Recommendation: Contact service technician`);
-    } else {
-        showLiveMessage('✅ Diagnostic complete!<br>Appliance is functioning normally');
-    }
-    
-    // Return to home after 5 seconds
-    setTimeout(() => {
-        closeScan();
-        const message = issueFound ? `Issue detected: ${currentIssue.issue}` : 'No issues found';
-        const type = issueFound ? 'error' : 'success';
-        showResult(`Diagnostic complete! ${message}`, type);
-    }, 5000);
-}
-
-function getSeverity(issueId) {
-    const severityMap = {
-        'power_failure': 'CRITICAL',
-        'overheating': 'CRITICAL', 
-        'auto_shutoff': 'HIGH',
-        'leaking': 'HIGH',
-        'heating_slow': 'MODERATE'
-    };
-    return severityMap[issueId] || 'MODERATE';
-}
-
-function getSeverityColor(severity) {
-    const colors = {
-        'CRITICAL': '#f44336',
-        'HIGH': '#ff9800',
-        'MODERATE': '#ffc107',
-        'Good': '#4caf50'
-    };
-    return colors[severity] || '#666';
-}
-
-function showHistory() {
-    log('Showing history...');
-    
-    if (diagnosticHistory.length === 0) {
-        showResult('📝 No diagnostic history available.', 'info');
-        return;
-    }
-    
-    const historyHtml = `
-        <div class="status-card">
-            <h3 style="margin-bottom: 20px;">📊 Diagnostic History</h3>
-            ${diagnosticHistory.map((record, index) => `
-                <div style="background: rgba(0,0,0,0.05); padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 4px solid ${getSeverityColor(record.severity)};">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <strong>${record.issue}</strong>
-                        <span style="background: ${getSeverityColor(record.severity)}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">${record.severity}</span>
-                    </div>
-                    <div style="font-size: 0.9em; color: #666;">
-                        <div>🔧 ${record.appliance}</div>
-                        <div>🕒 ${record.timestamp}</div>
-                        ${record.sensorData ? `<div>📊 ${record.sensorData.type}: ${record.sensorData.reading}</div>` : ''}
-                    </div>
-                </div>
-            `).join('')}
-            <button class="scan-btn" onclick="clearHistory()" style="background: linear-gradient(135deg, #dc3545, #c82333); margin-top: 15px;">
-                🗑️ Clear History
-            </button>
-        </div>
-    `;
-    
-    document.getElementById('resultContainer').innerHTML = historyHtml;
-}
-
-function clearHistory() {
-    diagnosticHistory = [];
-    showResult('✅ History cleared successfully!', 'success');
-}
-
-function closeScan() {
-    log('Closing diagnostic scan...');
-    
-    isScanning = false;
-    currentStep = 'idle';
-    
-    if (scanInterval) {
-        clearInterval(scanInterval);
-        scanInterval = null;
-    }
-    
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-    }
-    
-    // Hide overlays
-    document.getElementById('cameraOverlay').style.display = 'none';
-    document.getElementById('scanBtn').disabled = false;
-    
-    hideLiveMessage();
-    
-    // Reset state
-    document.getElementById('applianceId').value = '';
-    currentIssue = null;
-    detectedAppliance = null;
-}
-
-function showResult(message, type) {
-    const resultHtml = `<div class="result-card ${type}">${message}</div>`;
-    document.getElementById('resultContainer').innerHTML = resultHtml;
-}
-
-// Initialize when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    log('DOM loaded, initializing app...');
-    
-    // Check for required elements
-    const scanBtn = document.getElementById('scanBtn');
-    const historyBtn = document.getElementById('historyBtn');
-    const closeBtn = document.getElementById('closeCamera');
-    const yesBtn = document.getElementById('yesBtn');
-    const noBtn = document.getElementById('noBtn');
-    
-    if (!scanBtn || !historyBtn || !closeBtn || !yesBtn || !noBtn) {
-        log('ERROR: Missing required elements');
-        return;
-    }
-    
-    // Add event listeners
-    scanBtn.addEventListener('click', function() {
-        log('Scan button clicked');
-        startScan();
-    });
-    
-    historyBtn.addEventListener('click', function() {
-        log('History button clicked');
-        showHistory();
-    });
-    
-    closeBtn.addEventListener('click', function() {
-        log('Close button clicked');
-        closeScan();
-    });
-    
-    yesBtn.addEventListener('click', function() {
-        log('Yes button clicked');
-        handleUserResponse('yes');
-    });
-    
-    noBtn.addEventListener('click', function() {
-        log('No button clicked');
-        handleUserResponse('no');
-    });
-    
-    // Global functions
-    window.clearHistory = clearHistory;
-    
-    // Show initial message
-    showResult('👋 Ready for appliance diagnostics! Click "Start Diagnostic Scan" to begin.', 'info');
-    
-    log('EdgeLens AR Diagnostics initialized successfully');
-});
-
-// Fallback initialization
-window.onload = function() {
-    if (!document.querySelector('.result-card')) {
-        log('Fallback initialization triggered');
-        showResult('👋 Ready for appliance diagnostics! Click "Start Diagnostic Scan" to begin.', 'info');
-    }
-};
+    <!-- Load jsQR Library -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
