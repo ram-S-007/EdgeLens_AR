@@ -1,324 +1,255 @@
-class EdgeLensDeviceDiagnoser {
+// EdgeLens Agentic AR - Main Application
+class EdgeLensAR {
     constructor() {
-        this.video = document.getElementById('camera');
+        this.camera = document.getElementById('camera');
         this.canvas = document.getElementById('overlay');
         this.ctx = this.canvas.getContext('2d');
-        this.qrStatus = document.getElementById('qr-status');
-        this.diagnosisPanel = document.getElementById('diagnosis-panel');
-        this.scanIndicator = document.getElementById('scan-indicator');
+        this.model = null;
+        this.isDetecting = false;
+        this.mockSensors = new MockSensorSystem();
         
-        // Known device QR codes (expand this for different devices)
-        this.knownDevices = {
-            'KETTLE_QR_001': {
-                name: 'Electric Kettle',
-                icon: '🫖',
-                issues: [
-                    "Won't turn on - Power supply issue detected",
-                    "Takes too long to boil - Heating element degradation",
-                    "Leaking from body - Seal integrity compromised", 
-                    "Auto-shutoff not working - Thermostat malfunction"
-                ]
-            },
-            'PRINTER_QR_001': {
-                name: 'Laser Printer',
-                icon: '🖨️',
-                issues: [
-                    "Paper jam detected in feed tray",
-                    "Toner cartridge running low",
-                    "Network connectivity issues",
-                    "Print quality degradation - Drum unit aging"
-                ]
-            }
-        };
-        
-        this.currentDevice = null;
-        this.currentIssue = null;
-        this.isScanning = true;
-        this.scanInterval = null;
-        this.lastQRTime = 0;
-        
-        this.init();
+        // Detection state
+        this.lastDetection = null;
+        this.detectionHistory = [];
     }
 
     async init() {
         try {
+            // Setup camera
             await this.setupCamera();
-            this.startQRScanning();
-            this.updateStatus('🔍 Ready to scan device QR codes', 'scanning');
+            // Try to load AI model (fallback if not available)
+            await this.loadAIModel();
+            this.updateStatus('EdgeLens AR - Camera Ready');
         } catch (error) {
-            console.error('Initialization failed:', error);
-            this.updateStatus('❌ Camera access failed', 'error');
+            console.error('Initialization error:', error);
+            this.updateStatus('Camera access required for AR');
         }
     }
 
     async setupCamera() {
-        const constraints = {
-            video: {
-                facingMode: 'environment',
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-            }
-        };
-
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-            this.video.srcObject = stream;
-            
-            await new Promise((resolve) => {
-                this.video.onloadedmetadata = () => {
-                    this.canvas.width = this.video.videoWidth;
-                    this.canvas.height = this.video.videoHeight;
-                    resolve();
-                };
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    facingMode: 'environment', // Back camera
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
             });
+            
+            this.camera.srcObject = stream;
+            this.camera.onloadedmetadata = () => {
+                // Resize canvas to match video
+                this.canvas.width = this.camera.videoWidth;
+                this.canvas.height = this.camera.videoHeight;
+            };
+            
+            return true;
         } catch (error) {
-            // Fallback to any available camera
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            this.video.srcObject = stream;
-        }
-    }
-
-    startQRScanning() {
-        this.scanIndicator.style.display = 'block';
-        this.scanInterval = setInterval(() => {
-            if (this.isScanning) {
-                this.scanForQR();
-            }
-        }, 300); // Scan every 300ms for better mobile performance
-    }
-
-    scanForQR() {
-        if (this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
-            // Create temporary canvas for QR scanning
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            tempCanvas.width = this.video.videoWidth;
-            tempCanvas.height = this.video.videoHeight;
-            
-            tempCtx.drawImage(this.video, 0, 0);
-            const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-            
-            const qrCode = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
-            });
-            
-            if (qrCode) {
-                this.handleQRDetection(qrCode);
+            // Fallback to front camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+                this.camera.srcObject = stream;
+                return true;
+            } catch (fallbackError) {
+                throw new Error('Camera access denied');
             }
         }
     }
 
-    handleQRDetection(qrCode) {
-        const now = Date.now();
-        if (now - this.lastQRTime < 2000) return; // Debounce QR detection
-        
-        this.lastQRTime = now;
-        const qrData = qrCode.data;
-        
-        if (this.knownDevices[qrData]) {
-            this.currentDevice = this.knownDevices[qrData];
-            this.updateStatus(`✅ ${this.currentDevice.name} detected`, 'success');
-            this.stopScanning();
-            this.startDeviceDiagnosis();
-        } else {
-            this.updateStatus(`⚠️ Unknown device QR: ${qrData}`, 'unknown');
-            setTimeout(() => {
-                this.updateStatus('🔍 Looking for known device QR codes...', 'scanning');
-            }, 2000);
+    async loadAIModel() {
+        // For now, we'll simulate AI detection
+        // In real implementation, load your Teachable Machine model:
+        /*
+        try {
+            this.model = await tmImage.load('models/model.json', 'models/metadata.json');
+            console.log('AI model loaded');
+        } catch (error) {
+            console.log('Using mock AI detection');
         }
+        */
+        console.log('Mock AI system ready');
+        return true;
     }
 
-    stopScanning() {
-        this.isScanning = false;
-        this.scanIndicator.style.display = 'none';
-        if (this.scanInterval) {
-            clearInterval(this.scanInterval);
-        }
+    updateStatus(message) {
+        document.getElementById('status').textContent = message;
     }
 
-    startDeviceDiagnosis() {
-        // Simulate issue detection with fake sensor readings
-        this.currentIssue = this.currentDevice.issues[Math.floor(Math.random() * this.currentDevice.issues.length)];
-        
-        // Generate realistic sensor data based on the issue
-        const sensorData = this.generateSensorData(this.currentIssue);
-        
-        // Show diagnosis panel with animation
-        setTimeout(() => {
-            this.showDiagnosisPanel(sensorData);
-        }, 500);
-    }
-
-    generateSensorData(issue) {
-        const baseData = {
-            timestamp: new Date().toLocaleTimeString(),
-            deviceId: this.currentDevice.name
-        };
-
-        if (issue.includes("won't turn on")) {
-            return {
-                ...baseData,
-                voltage: "0.0V",
-                current: "0.0A", 
-                temperature: "22°C",
-                status: "NO_POWER"
-            };
-        } else if (issue.includes("heating") || issue.includes("boil")) {
-            return {
-                ...baseData,
-                voltage: "220V",
-                current: "8.2A",
-                temperature: "45°C",
-                heatingRate: "0.8°C/min",
-                status: "HEATING_SLOW"
-            };
-        } else if (issue.includes("leak")) {
-            return {
-                ...baseData,
-                voltage: "220V", 
-                current: "10.1A",
-                temperature: "95°C",
-                moistureLevel: "HIGH",
-                status: "SEAL_BREACH"
-            };
-        } else if (issue.includes("auto-shutoff")) {
-            return {
-                ...baseData,
-                voltage: "220V",
-                current: "10.5A", 
-                temperature: "105°C",
-                thermostat: "FAULT",
-                status: "OVERHEAT_RISK"
-            };
-        }
-        
-        return baseData;
-    }
-
-    showDiagnosisPanel(sensorData) {
-        // Update device info
-        document.getElementById('device-name').textContent = this.currentDevice.name;
-        document.querySelector('.device-icon').textContent = this.currentDevice.icon;
-        
-        // Show issue
-        document.getElementById('issue-info').innerHTML = `
-            <strong>⚠️ Issue Detected:</strong><br>
-            ${this.currentIssue}
-        `;
-        
-        // Show sensor readings
-        const sensorHtml = Object.entries(sensorData)
-            .map(([key, value]) => {
-                const displayKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                return `<div class="sensor-reading"><span>${displayKey}:</span><span>${value}</span></div>`;
-            }).join('');
-        
-        document.getElementById('sensor-info').innerHTML = `
-            <strong>📊 Live Sensor Readings:</strong>
-            ${sensorHtml}
-        `;
-        
-        // Generate AI suggestion
-        this.generateAISuggestion(sensorData);
-        
-        // Show panel with animation
-        this.diagnosisPanel.classList.add('show');
-    }
-
-    generateAISuggestion(sensorData) {
-        let suggestion = "";
-        
-        if (sensorData.status === "NO_POWER") {
-            suggestion = "🔌 **Power Supply Issue Detected**\n\n• Check power cord connection\n• Verify outlet is working\n• Test with different power source\n• Inspect cord for damage";
-        } else if (sensorData.status === "HEATING_SLOW") {
-            suggestion = "🔥 **Heating Performance Degraded**\n\n• Scale buildup detected on heating element\n• Recommended: Descaling procedure\n• Water quality may be affecting performance\n• Consider professional maintenance";
-        } else if (sensorData.status === "SEAL_BREACH") {
-            suggestion = "💧 **Seal Integrity Compromised**\n\n• Internal gasket replacement needed\n• Avoid using until repaired\n• Check warranty status\n• Contact service center immediately";
-        } else if (sensorData.status === "OVERHEAT_RISK") {
-            suggestion = "🌡️ **Critical: Thermostat Malfunction**\n\n• **STOP USING IMMEDIATELY**\n• Unplug device for safety\n• Thermostat replacement required\n• Professional repair mandatory";
-        }
-        
-        const formattedSuggestion = suggestion.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                            .replace(/\n/g, '<br>')
-                                            .replace(/•/g, '▸');
-        
-        document.getElementById('ai-response').innerHTML = `
-            <strong>🤖 AI Analysis & Recommendations:</strong><br><br>
-            ${formattedSuggestion}
-        `;
-    }
-
-    updateStatus(message, type) {
-        this.qrStatus.textContent = message;
-        this.qrStatus.className = `ui-overlay ${type === 'scanning' ? 'pulse' : ''}`;
-        
-        if (type === 'unknown') {
-            this.qrStatus.classList.add('unknown-device');
-        } else {
-            this.qrStatus.classList.remove('unknown-device');
-        }
-    }
-
-    restart() {
-        // Reset everything and start over
-        this.diagnosisPanel.classList.remove('show');
-        this.currentDevice = null;
-        this.currentIssue = null;
-        this.isScanning = true;
-        this.startQRScanning();
-        this.updateStatus('🔍 Ready to scan device QR codes', 'scanning');
-    }
-}
-
-// Global functions for button interactions
-function handleUserResponse(confirmed) {
-    if (confirmed) {
-        document.getElementById('ai-response').innerHTML += `
-            <br><br><div style="background: rgba(52, 199, 89, 0.2); padding: 10px; border-radius: 8px; margin-top: 10px;">
-                ✅ <strong>Diagnosis Confirmed</strong><br>
-                Proceeding with recommended maintenance protocol...
-            </div>
-        `;
-        
-        // Auto-restart after 3 seconds
-        setTimeout(() => {
-            edgeLensApp.restart();
-        }, 3000);
-        
-    } else {
-        document.getElementById('ai-response').innerHTML = `
-            <strong>🤖 Re-analyzing Device State...</strong><br><br>
-            Running additional diagnostic tests...<br>
-            Please wait while I gather more sensor data.
-        `;
-        
-        // Simulate re-analysis with different issue
-        setTimeout(() => {
-            edgeLensApp.currentIssue = edgeLensApp.currentDevice.issues[Math.floor(Math.random() * edgeLensApp.currentDevice.issues.length)];
-            const newSensorData = edgeLensApp.generateSensorData(edgeLensApp.currentIssue);
-            
-            document.getElementById('issue-info').innerHTML = `
-                <strong>🔄 Updated Analysis:</strong><br>
-                ${edgeLensApp.currentIssue}
+    updateResults(detection, sensors, advice) {
+        if (detection) {
+            document.getElementById('detection-info').innerHTML = `
+                <strong>🎯 Detection:</strong><br>
+                Object: ${detection.object}<br>
+                Confidence: ${detection.confidence}%<br>
+                Status: ${detection.detected ? 'Found' : 'Searching...'}
             `;
-            
-            edgeLensApp.generateAISuggestion(newSensorData);
-        }, 2000);
+        }
+
+        if (sensors) {
+            document.getElementById('sensor-data').innerHTML = `
+                <strong>📊 Sensors:</strong><br>
+                Temp: ${sensors.temperature}°C<br>
+                Water: ${sensors.waterLevel}<br>
+                Power: ${sensors.powerStatus}<br>
+                Vibration: ${sensors.vibration}
+            `;
+        }
+
+        if (advice) {
+            document.getElementById('ai-advice').innerHTML = `
+                <strong>🤖 AI Advice:</strong><br>
+                ${advice.recommendations.join('<br>')}
+            `;
+        }
+    }
+
+    // Mock AI Detection (replace with real Teachable Machine later)
+    detectObject() {
+        // Simulate kettle detection with random success
+        const scenarios = [
+            { object: 'Kettle', detected: true, confidence: 85 },
+            { object: 'Kettle', detected: true, confidence: 92 },
+            { object: 'Background', detected: false, confidence: 15 },
+            { object: 'Appliance', detected: true, confidence: 78 }
+        ];
+        
+        return scenarios[Math.floor(Math.random() * scenarios.length)];
+    }
+
+    drawDetectionBox(x, y, width, height, label, confidence) {
+        // Clear previous drawings
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Draw detection box
+        this.ctx.strokeStyle = '#00FF00';
+        this.ctx.lineWidth = 4;
+        this.ctx.strokeRect(x, y, width, height);
+        
+        // Draw label
+        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        this.ctx.fillRect(x, y - 35, 200, 30);
+        this.ctx.fillStyle = '#000000';
+        this.ctx.font = 'bold 16px Arial';
+        this.ctx.fillText(`${label} (${confidence}%)`, x + 5, y - 10);
     }
 }
 
-// Initialize the application
+// Mock Sensor System
+class MockSensorSystem {
+    constructor() {
+        this.data = {
+            temperature: 25,
+            waterLevel: 'unknown',
+            powerStatus: 'unknown',
+            vibration: 0
+        };
+        this.scenarios = [
+            {
+                name: 'Normal Operation',
+                temperature: 95,
+                waterLevel: 'adequate',
+                powerStatus: 'on',
+                vibration: 2,
+                issue: null,
+                advice: ['Kettle operating normally', 'Ready to serve hot water']
+            },
+            {
+                name: 'Power Issue',
+                temperature: 25,
+                waterLevel: 'adequate', 
+                powerStatus: 'off',
+                vibration: 0,
+                issue: 'No power detected',
+                advice: ['Check power cord connection', 'Verify outlet is working', 'Press power button']
+            },
+            {
+                name: 'Low Water',
+                temperature: 30,
+                waterLevel: 'low',
+                powerStatus: 'on',
+                vibration: 0,
+                issue: 'Insufficient water',
+                advice: ['Add water to minimum level', 'Check for leaks', 'Clean water reservoir']
+            },
+            {
+                name: 'Overheating',
+                temperature: 105,
+                waterLevel: 'adequate',
+                powerStatus: 'on',
+                vibration: 3,
+                issue: 'Temperature too high',
+                advice: ['Allow cooling period', 'Check for blockages', 'Reduce heating time']
+            }
+        ];
+    }
+
+    simulate() {
+        const scenario = this.scenarios[Math.floor(Math.random() * this.scenarios.length)];
+        this.data = { ...scenario };
+        return {
+            sensors: this.data,
+            diagnosis: {
+                status: scenario.issue ? 'issue_detected' : 'operational',
+                recommendations: scenario.advice,
+                priority: scenario.issue ? 'medium' : 'low'
+            }
+        };
+    }
+}
+
+// Global app instance
 let edgeLensApp;
-window.addEventListener('load', () => {
-    edgeLensApp = new EdgeLensDeviceDiagnoser();
+
+// Initialize app when page loads
+window.addEventListener('load', async () => {
+    edgeLensApp = new EdgeLensAR();
+    await edgeLensApp.init();
 });
 
-// Handle page visibility changes for mobile optimization
-document.addEventListener('visibilitychange', () => {
-    if (document.hidden && edgeLensApp) {
-        edgeLensApp.stopScanning();
-    } else if (!document.hidden && edgeLensApp && edgeLensApp.isScanning) {
-        edgeLensApp.startQRScanning();
+// Button handlers
+function startDetection() {
+    if (edgeLensApp.isDetecting) {
+        edgeLensApp.isDetecting = false;
+        document.getElementById('start-btn').textContent = 'Start Detection';
+        edgeLensApp.updateStatus('Detection stopped');
+        return;
     }
-});
+
+    edgeLensApp.isDetecting = true;
+    document.getElementById('start-btn').textContent = 'Stop Detection';
+    edgeLensApp.updateStatus('🔍 Scanning for objects...');
+
+    // Detection loop
+    const detectLoop = () => {
+        if (!edgeLensApp.isDetecting) return;
+
+        const detection = edgeLensApp.detectObject();
+        edgeLensApp.updateResults(detection, null, null);
+
+        if (detection.detected) {
+            // Draw detection box (center of screen for demo)
+            const centerX = edgeLensApp.canvas.width * 0.3;
+            const centerY = edgeLensApp.canvas.height * 0.3;
+            edgeLensApp.drawDetectionBox(centerX, centerY, 200, 150, detection.object, detection.confidence);
+            
+            edgeLensApp.updateStatus('✅ Object detected - AR active');
+        }
+
+        // Continue detection
+        setTimeout(detectLoop, 1000);
+    };
+
+    detectLoop();
+}
+
+function runSensors() {
+    edgeLensApp.updateStatus('📡 Reading sensors...');
+    
+    setTimeout(() => {
+        const sensorResult = edgeLensApp.mockSensors.simulate();
+        edgeLensApp.updateResults(null, sensorResult.sensors, sensorResult.diagnosis);
+        edgeLensApp.updateStatus('✅ Sensor data updated');
+    }, 1500);
+}
