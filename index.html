@@ -5,246 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>EdgeLens Agentic AR - Device Diagnostics</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>EdgeLens Agentic AR</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #000; color: #fff; overflow: hidden; height: 100vh;
         }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #000;
-            overflow: hidden;
-            height: 100vh;
-            position: relative;
+        #camera-container { 
+            position: relative; width: 100vw; height: 100vh; 
         }
-
-        #camera {
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
+        #camera { 
+            width: 100%; height: 100%; object-fit: cover; 
         }
-
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none;
-            z-index: 10;
+        #overlay { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
         }
-
-        .ui-overlay {
-            position: fixed;
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+        #controls { 
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 15px; z-index: 100;
         }
-
-        #qr-status {
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            padding: 15px 20px;
-            border-radius: 12px;
-            text-align: center;
-            font-weight: 600;
-            border: 2px solid rgba(0, 255, 0, 0.3);
-            transition: all 0.3s ease;
+        button { 
+            padding: 15px 25px; background: #007AFF; border: none;
+            border-radius: 25px; color: white; font-weight: 600; cursor: pointer;
+            font-size: 14px; box-shadow: 0 4px 15px rgba(0,122,255,0.4);
         }
-
-        #diagnosis-panel {
-            bottom: 20px;
-            left: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.9));
-            color: #fff;
-            padding: 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            display: none;
-            transform: translateY(100px);
-            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        #results { 
+            position: fixed; top: 20px; right: 20px; width: 280px;
+            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px;
+            font-size: 13px; z-index: 100; backdrop-filter: blur(10px);
         }
-
-        #diagnosis-panel.show {
-            display: block;
-            transform: translateY(0);
+        .detection-box {
+            border: 3px solid #00FF00; position: absolute; z-index: 50;
         }
-
-        .diagnosis-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 15px;
-            font-size: 18px;
-            font-weight: bold;
-        }
-
-        .device-icon {
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(45deg, #007AFF, #34C759);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-        }
-
-        .issue-description {
-            background: rgba(255, 59, 48, 0.1);
-            border-left: 4px solid #FF3B30;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .sensor-data {
-            background: rgba(0, 122, 255, 0.1);
-            border-left: 4px solid #007AFF;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .sensor-reading {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 14px;
-        }
-
-        .ai-suggestion {
-            background: rgba(52, 199, 89, 0.1);
-            border-left: 4px solid #34C759;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 14px 20px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .btn-confirm {
-            background: linear-gradient(45deg, #34C759, #30D158);
-            color: white;
-        }
-
-        .btn-deny {
-            background: linear-gradient(45deg, #FF3B30, #FF453A);
-            color: white;
-        }
-
-        .btn:active {
-            transform: scale(0.95);
-        }
-
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { border-color: rgba(0, 255, 0, 0.3); }
-            50% { border-color: rgba(0, 255, 0, 0.8); }
-            100% { border-color: rgba(0, 255, 0, 0.3); }
-        }
-
-        .scanning-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
-            border: 3px solid rgba(0, 255, 0, 0.3);
-            border-radius: 12px;
-            z-index: 50;
-        }
-
-        .scanning-indicator::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #00FF00, transparent);
-            animation: scan-line 2s ease-in-out infinite;
-        }
-
-        @keyframes scan-line {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(196px); }
-        }
-
-        .unknown-device {
-            color: #FF9500;
-            background: rgba(255, 149, 0, 0.1);
-            border-left: 4px solid #FF9500;
+        .detection-label {
+            background: rgba(0,255,0,0.8); color: black; padding: 5px 10px;
+            position: absolute; top: -30px; left: 0; border-radius: 5px;
+            font-weight: bold; font-size: 12px;
         }
     </style>
 </head>
 <body>
-    <video id="camera" autoplay playsinline muted></video>
-    <canvas id="overlay"></canvas>
-    <div class="scanning-indicator" id="scan-indicator"></div>
-    
-    <div class="ui-overlay" id="qr-status">
-        🔍 Position QR code within the frame to identify device
+    <div id="camera-container">
+        <video id="camera" autoplay playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div id="detection-overlay"></div>
     </div>
     
-    <div class="ui-overlay" id="diagnosis-panel">
-        <div class="diagnosis-header">
-            <div class="device-icon">🔧</div>
-            <div id="device-name">Device Diagnosis</div>
-        </div>
-        
-        <div class="issue-description" id="issue-info">
-            <!-- Issue will be populated here -->
-        </div>
-        
-        <div class="sensor-data" id="sensor-info">
-            <!-- Sensor readings will be populated here -->
-        </div>
-        
-        <div class="ai-suggestion" id="ai-response">
-            <!-- AI suggestion will be populated here -->
-        </div>
-        
-        <div class="action-buttons">
-            <button class="btn btn-confirm" onclick="handleUserResponse(true)">✓ Accurate</button>
-            <button class="btn btn-deny" onclick="handleUserResponse(false)">✗ Re-analyze</button>
-        </div>
+    <div id="controls">
+        <button id="start-btn" onclick="startDetection()">Start Detection</button>
+        <button id="sensor-btn" onclick="runSensors()">Check Sensors</button>
+    </div>
+    
+    <div id="results">
+        <div id="status">EdgeLens AR - Ready</div>
+        <div id="detection-info"></div>
+        <div id="sensor-data"></div>
+        <div id="ai-advice"></div>
     </div>
 
-    <!-- Load jsQR Library -->
-    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <!-- Load AI Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <!-- Your JavaScript Code -->
     <script src="app.js"></script>
 </body>
 </html>
