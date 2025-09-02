@@ -115,21 +115,6 @@
             overflow: hidden;
         }
 
-        .scan-btn::before, .history-btn::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.6s;
-        }
-
-        .scan-btn:hover::before, .history-btn:hover::before {
-            left: 100%;
-        }
-
         .history-btn {
             background: linear-gradient(135deg, #2196f3, #1976d2);
             box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
@@ -180,6 +165,7 @@
             width: 100%;
             height: 100%;
             z-index: 1001;
+            pointer-events: none;
         }
 
         .scanner-frame {
@@ -191,42 +177,7 @@
             height: 280px;
             border: 3px solid #ff6b35;
             border-radius: 20px;
-            background: rgba(255, 107, 53, 0.1);
             z-index: 1002;
-        }
-
-        .scanner-corners {
-            position: absolute;
-            width: 30px;
-            height: 30px;
-        }
-
-        .scanner-corners::before {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 3px;
-            background: #ff6b35;
-        }
-
-        .scanner-corners::after {
-            content: '';
-            position: absolute;
-            width: 3px;
-            height: 100%;
-            background: #ff6b35;
-        }
-
-        .corner-tl { top: -3px; left: -3px; }
-        .corner-tr { top: -3px; right: -3px; }
-        .corner-bl { bottom: -3px; left: -3px; }
-        .corner-br { bottom: -3px; right: -3px; }
-
-        .corner-tr::before, .corner-br::before {
-            right: 0;
-        }
-        .corner-bl::after, .corner-br::after {
-            bottom: 0;
         }
 
         .scanner-line {
@@ -272,6 +223,8 @@
             backdrop-filter: blur(10px);
             max-width: 90%;
             animation: messageSlide 0.5s ease-out;
+            font-size: 16px;
+            line-height: 1.4;
         }
 
         @keyframes messageSlide {
@@ -298,6 +251,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            font-size: 16px;
         }
 
         .yes-btn {
@@ -310,19 +264,8 @@
             color: white;
         }
 
-        .yes-btn:hover {
-            background: rgba(76, 175, 80, 1);
+        .yes-btn:hover, .no-btn:hover {
             transform: scale(1.05);
-        }
-
-        .no-btn:hover {
-            background: rgba(244, 67, 54, 1);
-            transform: scale(1.05);
-        }
-
-        /* AR Mode */
-        .ar-mode .container {
-            display: none;
         }
 
         /* Detection Box */
@@ -390,14 +333,9 @@
             .header { padding: 25px 20px; }
             .header h1 { font-size: 1.6em; }
             .scanner-frame { width: 240px; height: 240px; }
-            .live-message { bottom: 80px; padding: 15px 20px; }
+            .live-message { bottom: 80px; padding: 15px 20px; font-size: 14px; }
             .interactive-buttons { bottom: 20px; }
-            .yes-btn, .no-btn { padding: 10px 20px; }
-        }
-
-        @media (max-width: 360px) {
-            .scanner-frame { width: 200px; height: 200px; }
-            .live-message { font-size: 0.9em; }
+            .yes-btn, .no-btn { padding: 10px 20px; font-size: 14px; }
         }
     </style>
 </head>
@@ -426,10 +364,6 @@
         <button class="close-camera" id="closeCamera">✕ Close</button>
         
         <div class="scanner-frame">
-            <div class="scanner-corners corner-tl"></div>
-            <div class="scanner-corners corner-tr"></div>
-            <div class="scanner-corners corner-bl"></div>
-            <div class="scanner-corners corner-br"></div>
             <div class="scanner-line"></div>
         </div>
 
@@ -444,17 +378,20 @@
     </div>
 
 <script>
-// App state
+console.log('Script loading...');
+
+// Global variables
 let diagnosticHistory = [];
 let currentStep = 'idle';
 let detectedAppliance = null;
 let currentIssue = null;
-let video = document.getElementById('video');
-let canvas = document.getElementById('canvas');
-let ctx = canvas.getContext('2d');
 let stream = null;
 let isScanning = false;
 let scanInterval = null;
+
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
 
 const kettleIssues = [
     {
@@ -514,28 +451,48 @@ function log(message) {
 }
 
 function showLiveMessage(message, showButtons = false) {
+    log(`Showing live message: ${message}`);
     const messageEl = document.getElementById('liveMessage');
     const buttonsEl = document.getElementById('interactiveButtons');
     
-    messageEl.textContent = message;
-    messageEl.style.display = 'block';
-    buttonsEl.style.display = showButtons ? 'flex' : 'none';
+    if (messageEl && buttonsEl) {
+        messageEl.innerHTML = message.replace(/\n/g, '<br>');
+        messageEl.style.display = 'block';
+        buttonsEl.style.display = showButtons ? 'flex' : 'none';
+    }
 }
 
 function hideLiveMessage() {
-    document.getElementById('liveMessage').style.display = 'none';
-    document.getElementById('interactiveButtons').style.display = 'none';
+    const messageEl = document.getElementById('liveMessage');
+    const buttonsEl = document.getElementById('interactiveButtons');
+    
+    if (messageEl && buttonsEl) {
+        messageEl.style.display = 'none';
+        buttonsEl.style.display = 'none';
+    }
 }
 
 async function startScan() {
     log('Starting diagnostic scan...');
-    currentStep = 'scanning';
     
     try {
-        document.getElementById('cameraOverlay').style.display = 'block';
-        document.getElementById('scanBtn').disabled = true;
+        currentStep = 'scanning';
         
-        // Request camera permission
+        // Show camera overlay
+        const overlay = document.getElementById('cameraOverlay');
+        const scanBtn = document.getElementById('scanBtn');
+        
+        if (!overlay || !scanBtn) {
+            log('ERROR: Missing elements');
+            return;
+        }
+        
+        overlay.style.display = 'block';
+        scanBtn.disabled = true;
+        
+        log('Requesting camera access...');
+        
+        // Request camera permission with fallback
         const constraints = {
             video: { 
                 facingMode: { ideal: 'environment' },
@@ -546,65 +503,106 @@ async function startScan() {
         
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
+            log('Rear camera accessed successfully');
         } catch (err) {
             log('Rear camera failed, trying default camera');
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                log('Default camera accessed successfully');
+            } catch (err2) {
+                throw new Error('No camera access available');
+            }
         }
         
+        // Setup video
         video.srcObject = stream;
-        await video.play();
+        video.onloadedmetadata = () => {
+            log('Video metadata loaded');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            log(`Canvas size: ${canvas.width}x${canvas.height}`);
+        };
         
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+        await video.play();
+        log('Video playing');
         
         isScanning = true;
         showLiveMessage('🔍 Scanning for appliance QR code...');
         
-        // Start QR scanning loop
-        scanInterval = setInterval(scanForQR, 100);
+        // Start scanning loop
+        scanInterval = setInterval(() => {
+            scanForQR();
+        }, 100);
         
-        log('Camera active, scanning for QR codes...');
+        log('QR scanning started');
         
     } catch (err) {
         log(`Camera error: ${err.message}`);
-        showResult('❌ Camera access required. Please allow camera permission.', 'error');
+        showResult('❌ Camera access required. Please allow camera permission and try again.', 'error');
         closeScan();
     }
 }
 
 function scanForQR() {
-    if (!isScanning || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    if (!isScanning || !video || video.readyState !== video.HAVE_ENOUGH_DATA) {
+        return;
+    }
     
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Scan central region for better performance
-    const scanSize = Math.min(canvas.width, canvas.height) * 0.6;
-    const x = (canvas.width - scanSize) / 2;
-    const y = (canvas.height - scanSize) / 2;
-    
-    const imageData = ctx.getImageData(x, y, scanSize, scanSize);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: 'attemptBoth'
-    });
-    
-    if (code) {
-        handleQRDetection(code.data);
+    try {
+        // Draw video to canvas
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data for QR scanning
+        const scanSize = Math.min(canvas.width, canvas.height) * 0.8;
+        const x = (canvas.width - scanSize) / 2;
+        const y = (canvas.height - scanSize) / 2;
+        
+        const imageData = ctx.getImageData(x, y, scanSize, scanSize);
+        
+        // Scan for QR code
+        if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'attemptBoth'
+            });
+            
+            if (code && code.data) {
+                handleQRDetection(code.data);
+            }
+        }
+    } catch (err) {
+        log(`Scan error: ${err.message}`);
     }
 }
 
 function handleQRDetection(qrData) {
     log(`QR detected: ${qrData}`);
     
-    if (qrData === 'kettle:diagnostic_mode') {
+    // Stop scanning
+    if (scanInterval) {
         clearInterval(scanInterval);
-        document.getElementById('applianceId').value = qrData;
-        
-        showLiveMessage('✅ Kettle detected! Confirming appliance...');
+        scanInterval = null;
+    }
+    
+    // Update input field
+    const applianceInput = document.getElementById('applianceId');
+    if (applianceInput) {
+        applianceInput.value = qrData;
+    }
+    
+    if (qrData === 'kettle:diagnostic_mode') {
+        showLiveMessage('✅ Kettle QR code detected! Confirming appliance...');
         setTimeout(() => confirmAppliance('kettle'), 2000);
-        
     } else {
-        showLiveMessage(`❌ Unknown appliance: ${qrData}. Please scan a supported device.`);
-        setTimeout(() => showLiveMessage('🔍 Scanning for appliance QR code...'), 3000);
+        showLiveMessage(`❌ Unknown appliance QR: ${qrData}<br>Please scan a supported device.`);
+        // Restart scanning after 3 seconds
+        setTimeout(() => {
+            showLiveMessage('🔍 Scanning for appliance QR code...');
+            scanInterval = setInterval(() => {
+                scanForQR();
+            }, 100);
+        }, 3000);
     }
 }
 
@@ -612,55 +610,52 @@ function confirmAppliance(applianceType) {
     log(`Confirming appliance: ${applianceType}`);
     currentStep = 'confirming';
     
-    // Draw detection box around center of screen (simulated appliance detection)
+    // Draw detection box
     drawDetectionBox();
     
     showLiveMessage('🔍 Analyzing appliance with AI vision...');
     
-    // Simulate AI confirmation delay
+    // Simulate AI confirmation
     setTimeout(() => {
         detectedAppliance = applianceType;
         showLiveMessage('✅ Smart kettle confirmed! Starting diagnostics...');
-        setTimeout(startDiagnostics, 2000);
+        setTimeout(() => startDiagnostics(), 2000);
     }, 3000);
 }
 
 function drawDetectionBox() {
-    const boxWidth = canvas.width * 0.4;
-    const boxHeight = canvas.height * 0.3;
+    const boxWidth = Math.min(canvas.width * 0.4, 200);
+    const boxHeight = Math.min(canvas.height * 0.3, 150);
     const x = (canvas.width - boxWidth) / 2;
     const y = (canvas.height - boxHeight) / 2;
     
-    // Create detection box element
-    const detectionBox = document.createElement('div');
-    detectionBox.className = 'detection-box';
-    detectionBox.style.left = `${x}px`;
-    detectionBox.style.top = `${y}px`;
-    detectionBox.style.width = `${boxWidth}px`;
-    detectionBox.style.height = `${boxHeight}px`;
+    // Draw detection box on canvas
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, boxWidth, boxHeight);
     
-    const label = document.createElement('div');
-    label.className = 'detection-label';
-    label.textContent = 'Smart Kettle Detected';
-    detectionBox.appendChild(label);
-    
-    document.getElementById('cameraOverlay').appendChild(detectionBox);
+    // Draw label
+    ctx.fillStyle = '#4caf50';
+    ctx.fillRect(x, y - 30, 150, 25);
+    ctx.fillStyle = 'white';
+    ctx.font = '14px Arial';
+    ctx.fillText('Kettle Detected', x + 5, y - 10);
 }
 
 function startDiagnostics() {
     log('Starting diagnostic process...');
     currentStep = 'diagnosing';
     
-    // Select random issue for demonstration
+    // Select random issue
     currentIssue = kettleIssues[Math.floor(Math.random() * kettleIssues.length)];
     log(`Selected issue: ${currentIssue.issue}`);
     
     showLiveMessage('🔬 Running sensor analysis...');
     
     setTimeout(() => {
-        // Show sensor reading overlay
-        const sensorReading = `${currentIssue.sensorType.toUpperCase()}: ${currentIssue.detectedValue} (Normal: ${currentIssue.normalRange})`;
-        showLiveMessage(`⚠️ ${sensorReading}\n${currentIssue.overlay}`);
+        // Show sensor reading
+        const sensorReading = `${currentIssue.sensorType.toUpperCase()}: ${currentIssue.detectedValue}<br>Normal: ${currentIssue.normalRange}<br><br>${currentIssue.overlay}`;
+        showLiveMessage(`⚠️ ${sensorReading}`);
         
         setTimeout(() => {
             askUserQuestion();
@@ -686,12 +681,12 @@ function handleUserResponse(response) {
     } else {
         showLiveMessage('🔍 Issue not confirmed. Running additional tests...');
         setTimeout(() => {
-            // Select different issue or show "no issues found"
+            // Randomly select different issue or show no issues
             if (Math.random() > 0.5) {
                 currentIssue = kettleIssues[Math.floor(Math.random() * kettleIssues.length)];
-                setTimeout(askUserQuestion, 2000);
+                setTimeout(() => askUserQuestion(), 2000);
             } else {
-                showLiveMessage('✅ No critical issues detected. Appliance appears healthy.');
+                showLiveMessage('✅ No critical issues detected.<br>Appliance appears healthy.');
                 setTimeout(() => completeDiagnostic(false), 3000);
             }
         }, 2000);
@@ -719,16 +714,17 @@ function completeDiagnostic(issueFound) {
     if (diagnosticHistory.length > 10) diagnosticHistory.splice(10);
     
     if (issueFound) {
-        showLiveMessage(`🚨 ${currentIssue.issue}\nSeverity: ${getSeverity(currentIssue.id)}\nRecommendation: Contact service technician`);
+        showLiveMessage(`🚨 ${currentIssue.issue}<br>Severity: ${getSeverity(currentIssue.id)}<br><br>Recommendation: Contact service technician`);
     } else {
-        showLiveMessage('✅ Diagnostic complete!\nAppliance is functioning normally');
+        showLiveMessage('✅ Diagnostic complete!<br>Appliance is functioning normally');
     }
     
     // Return to home after 5 seconds
     setTimeout(() => {
         closeScan();
-        showResult(`Diagnostic complete! ${issueFound ? 'Issue detected: ' + currentIssue.issue : 'No issues found.'}`, 
-                   issueFound ? 'error' : 'success');
+        const message = issueFound ? `Issue detected: ${currentIssue.issue}` : 'No issues found';
+        const type = issueFound ? 'error' : 'success';
+        showResult(`Diagnostic complete! ${message}`, type);
     }, 5000);
 }
 
@@ -743,7 +739,19 @@ function getSeverity(issueId) {
     return severityMap[issueId] || 'MODERATE';
 }
 
+function getSeverityColor(severity) {
+    const colors = {
+        'CRITICAL': '#f44336',
+        'HIGH': '#ff9800',
+        'MODERATE': '#ffc107',
+        'Good': '#4caf50'
+    };
+    return colors[severity] || '#666';
+}
+
 function showHistory() {
+    log('Showing history...');
+    
     if (diagnosticHistory.length === 0) {
         showResult('📝 No diagnostic history available.', 'info');
         return;
@@ -774,16 +782,6 @@ function showHistory() {
     document.getElementById('resultContainer').innerHTML = historyHtml;
 }
 
-function getSeverityColor(severity) {
-    const colors = {
-        'CRITICAL': '#f44336',
-        'HIGH': '#ff9800',
-        'MODERATE': '#ffc107',
-        'Good': '#4caf50'
-    };
-    return colors[severity] || '#666';
-}
-
 function clearHistory() {
     diagnosticHistory = [];
     showResult('✅ History cleared successfully!', 'success');
@@ -795,24 +793,23 @@ function closeScan() {
     isScanning = false;
     currentStep = 'idle';
     
-    if (scanInterval) clearInterval(scanInterval);
+    if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+    }
     
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     }
     
-    // Clean up UI
+    // Hide overlays
     document.getElementById('cameraOverlay').style.display = 'none';
     document.getElementById('scanBtn').disabled = false;
-    document.body.classList.remove('ar-mode');
-    
-    // Remove detection boxes
-    document.querySelectorAll('.detection-box').forEach(box => box.remove());
     
     hideLiveMessage();
     
-    // Reset form
+    // Reset state
     document.getElementById('applianceId').value = '';
     currentIssue = null;
     detectedAppliance = null;
@@ -823,21 +820,61 @@ function showResult(message, type) {
     document.getElementById('resultContainer').innerHTML = resultHtml;
 }
 
-// Initialize app
-window.onload = function() {
-    log('EdgeLens AR Diagnostics initialized');
-    showResult('👋 Ready for appliance diagnostics! Point camera at QR code to begin.', 'info');
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    log('DOM loaded, initializing app...');
     
-    // Event listeners
-    document.getElementById('scanBtn').addEventListener('click', startScan);
-    document.getElementById('historyBtn').addEventListener('click', showHistory);
-    document.getElementById('closeCamera').addEventListener('click', closeScan);
-    document.getElementById('yesBtn').addEventListener('click', () => handleUserResponse('yes'));
-    document.getElementById('noBtn').addEventListener('click', () => handleUserResponse('no'));
+    // Check for required elements
+    const scanBtn = document.getElementById('scanBtn');
+    const historyBtn = document.getElementById('historyBtn');
+    const closeBtn = document.getElementById('closeCamera');
+    const yesBtn = document.getElementById('yesBtn');
+    const noBtn = document.getElementById('noBtn');
+    
+    if (!scanBtn || !historyBtn || !closeBtn || !yesBtn || !noBtn) {
+        log('ERROR: Missing required elements');
+        return;
+    }
+    
+    // Add event listeners
+    scanBtn.addEventListener('click', function() {
+        log('Scan button clicked');
+        startScan();
+    });
+    
+    historyBtn.addEventListener('click', function() {
+        log('History button clicked');
+        showHistory();
+    });
+    
+    closeBtn.addEventListener('click', function() {
+        log('Close button clicked');
+        closeScan();
+    });
+    
+    yesBtn.addEventListener('click', function() {
+        log('Yes button clicked');
+        handleUserResponse('yes');
+    });
+    
+    noBtn.addEventListener('click', function() {
+        log('No button clicked');
+        handleUserResponse('no');
+    });
     
     // Global functions
     window.clearHistory = clearHistory;
+    
+    // Show initial message
+    showResult('👋 Ready for appliance diagnostics! Click "Start Diagnostic Scan" to begin.', 'info');
+    
+    log('EdgeLens AR Diagnostics initialized successfully');
+});
+
+// Fallback initialization
+window.onload = function() {
+    if (!document.querySelector('.result-card')) {
+        log('Fallback initialization triggered');
+        showResult('👋 Ready for appliance diagnostics! Click "Start Diagnostic Scan" to begin.', 'info');
+    }
 };
-</script>
-</body>
-</html>
