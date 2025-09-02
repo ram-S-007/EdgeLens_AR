@@ -1,0 +1,288 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.container {
+    max-width: 420px;
+    margin: 0 auto;
+    padding: 15px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.header {
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(15px);
+    border-radius: 25px;
+    padding: 30px 25px;
+    text-align: center;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header h1 {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+    font-size: 1.9em;
+    font-weight: 700;
+}
+
+.header p {
+    color: #666;
+    font-size: 0.95em;
+    font-weight: 500;
+}
+
+.appliance-icon {
+    font-size: 3.5em;
+    margin-bottom: 15px;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+.status-card {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.qr-input {
+    width: 100%;
+    padding: 15px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 15px;
+    font-size: 1em;
+    margin-bottom: 20px;
+    text-align: center;
+    background: #fafafa;
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+.scan-btn, .history-btn {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    color: white;
+    border: none;
+    padding: 18px 30px;
+    border-radius: 15px;
+    font-size: 1.1em;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-bottom: 15px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+}
+
+.history-btn {
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+    box-shadow: 0 6px 20px rgba(33, 150, 243, 0.4);
+}
+
+.scan-btn:hover, .history-btn:hover {
+    transform: translateY(-2px);
+}
+
+.scan-btn:disabled {
+    background: linear-gradient(135deg, #ccc, #999);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Camera Overlay */
+.camera-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 1000;
+}
+
+#video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 999;
+}
+
+#canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1001;
+    pointer-events: none;
+}
+
+.scanner-frame {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 280px;
+    height: 280px;
+    border: 3px solid #ff6b35;
+    border-radius: 20px;
+    z-index: 1002;
+}
+
+.scanner-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #ff6b35, transparent);
+    animation: scan 2s ease-in-out infinite;
+}
+
+@keyframes scan {
+    0%, 100% { top: 10px; opacity: 0; }
+    50% { top: 50%; opacity: 1; }
+}
+
+.close-camera {
+    position: absolute;
+    top: 40px;
+    right: 20px;
+    background: rgba(255, 107, 53, 0.9);
+    color: white;
+    border: none;
+    padding: 12px 18px;
+    border-radius: 12px;
+    cursor: pointer;
+    z-index: 1003;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.live-message {
+    position: absolute;
+    bottom: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 20px;
+    text-align: center;
+    z-index: 1002;
+    backdrop-filter: blur(15px);
+    max-width: 90%;
+    animation: messageSlide 0.5s ease-out;
+    font-size: 16px;
+    line-height: 1.6;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+@keyframes messageSlide {
+    from { transform: translateX(-50%) translateY(50px); opacity: 0; }
+    to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.interactive-buttons {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    z-index: 1003;
+}
+
+.yes-btn, .no-btn {
+    padding: 15px 30px;
+    border: none;
+    border-radius: 25px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    font-size: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.yes-btn {
+    background: rgba(76, 175, 80, 0.9);
+    color: white;
+}
+
+.no-btn {
+    background: rgba(244, 67, 54, 0.9);
+    color: white;
+}
+
+.yes-btn:hover, .no-btn:hover {
+    transform: scale(1.05);
+}
+
+.result-card {
+    padding: 20px;
+    border-radius: 15px;
+    margin: 15px 0;
+    animation: slideIn 0.5s ease-out;
+    border-left: 5px solid;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.result-card.success {
+    background: linear-gradient(135deg, #e8f5e8, #c8e6c9);
+    border-color: #4caf50;
+    color: #2e7d32;
+}
+
+.result-card.error {
+    background: linear-gradient(135deg, #ffebee, #ffcdd2);
+    border-color: #f44336;
+    color: #c62828;
+}
+
+.result-card.info {
+    background: linear-gradient(135deg, #fff8e1, #fff3c4);
+    border-color: #ffc107;
+    color: #f57f17;
+}
+
+@media (max-width: 480px) {
+    .container { padding: 10px; }
+    .header { padding: 25px 20px; }
+    .header h1 { font-size: 1.6em; }
+    .scanner-frame { width: 240px; height: 240px; }
+    .live-message { bottom: 120px; padding: 20px 25px; font-size: 14px; }
+    .interactive-buttons { bottom: 40px; gap: 15px; }
+    .yes-btn, .no-btn { padding: 12px 25px; font-size: 14px; }
+}
