@@ -1,255 +1,314 @@
-// EdgeLens Agentic AR - Main Application
-class EdgeLensAR {
+class EdgeLensApp {
     constructor() {
-        this.camera = document.getElementById('camera');
-        this.canvas = document.getElementById('overlay');
+        this.video = document.getElementById('video');
+        this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
-        this.model = null;
-        this.isDetecting = false;
-        this.mockSensors = new MockSensorSystem();
+        this.liveMessage = document.getElementById('liveMessage');
+        this.cameraOverlay = document.getElementById('cameraOverlay');
         
-        // Detection state
-        this.lastDetection = null;
-        this.detectionHistory = [];
+        this.stream = null;
+        this.currentStep = 'idle';
+        this.currentIssue = null;
+        this.scanTimeout = null;
+        
+        // Common device issues
+        this.deviceIssues = [
+            {
+                issue: "Won't turn on",
+                description: "Power supply failure or internal circuitry malfunction detected",
+                sensorData: "Voltage: 0.2V (Normal: 220-240V)",
+                overlay: "⚡ Power Supply Check",
+                question: "Is the device completely unresponsive when you press the power button?"
+            },
+            {
+                issue: "Takes too long to boil / Overheating",
+                description: "Temperature regulation system showing abnormal readings",
+                sensorData: "Temperature: 115°C (Normal: 95-100°C)",
+                overlay: "🌡️ Temperature Analysis",
+                question: "Does the device take much longer than usual to heat up or get extremely hot?"
+            },
+            {
+                issue: "Leaking from the body",
+                description: "Structural integrity compromised - seal failure detected",
+                sensorData: "Pressure: 0.6 atm (Normal: 1.2-1.5 atm)",
+                overlay: "💧 Pressure Test",
+                question: "Do you notice any water or liquid leaking from the device?"
+            },
+            {
+                issue: "Auto-shutoff not working",
+                description: "Safety system malfunction - critical temperature override detected",
+                sensorData: "Safety Circuit: BYPASS (Normal: ACTIVE)",
+                overlay: "🚨 Safety System Check",
+                question: "Does the device continue operating beyond normal limits without stopping?"
+            }
+        ];
+        
+        this.init();
     }
-
-    async init() {
-        try {
-            // Setup camera
-            await this.setupCamera();
-            // Try to load AI model (fallback if not available)
-            await this.loadAIModel();
-            this.updateStatus('EdgeLens AR - Camera Ready');
-        } catch (error) {
-            console.error('Initialization error:', error);
-            this.updateStatus('Camera access required for AR');
-        }
+    
+    init() {
+        const scanBtn = document.getElementById('scanBtn');
+        const historyBtn = document.getElementById('historyBtn');
+        const closeCamera = document.getElementById('closeCamera');
+        const yesBtn = document.getElementById('yesBtn');
+        const noBtn = document.getElementById('noBtn');
+        
+        scanBtn.addEventListener('click', () => this.startScan());
+        historyBtn.addEventListener('click', () => this.showHistory());
+        closeCamera.addEventListener('click', () => this.closeScan());
+        yesBtn.addEventListener('click', () => this.handleResponse(true));
+        noBtn.addEventListener('click', () => this.handleResponse(false));
+        
+        this.showResult('👋 Ready for device diagnostics! Click "Start Diagnostic Scan" to begin.', 'info');
+        console.log('EdgeLens AR Diagnostics initialized');
     }
-
-    async setupCamera() {
+    
+    async startScan() {
+        if (this.currentStep !== 'idle') return;
+        
+        this.currentStep = 'scanning';
+        
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({
+            // Show camera overlay
+            this.cameraOverlay.style.display = 'block';
+            document.getElementById('scanBtn').disabled = true;
+            
+            // Request camera
+            this.stream = await navigator.mediaDevices.getUserMedia({
                 video: { 
-                    facingMode: 'environment', // Back camera
+                    facingMode: { ideal: 'environment' },
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 }
             });
             
-            this.camera.srcObject = stream;
-            this.camera.onloadedmetadata = () => {
-                // Resize canvas to match video
-                this.canvas.width = this.camera.videoWidth;
-                this.canvas.height = this.camera.videoHeight;
-            };
+            this.video.srcObject = this.stream;
+            await this.video.play();
             
-            return true;
-        } catch (error) {
-            // Fallback to front camera
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: true
-                });
-                this.camera.srcObject = stream;
-                return true;
-            } catch (fallbackError) {
-                throw new Error('Camera access denied');
-            }
-        }
-    }
-
-    async loadAIModel() {
-        // For now, we'll simulate AI detection
-        // In real implementation, load your Teachable Machine model:
-        /*
-        try {
-            this.model = await tmImage.load('models/model.json', 'models/metadata.json');
-            console.log('AI model loaded');
-        } catch (error) {
-            console.log('Using mock AI detection');
-        }
-        */
-        console.log('Mock AI system ready');
-        return true;
-    }
-
-    updateStatus(message) {
-        document.getElementById('status').textContent = message;
-    }
-
-    updateResults(detection, sensors, advice) {
-        if (detection) {
-            document.getElementById('detection-info').innerHTML = `
-                <strong>🎯 Detection:</strong><br>
-                Object: ${detection.object}<br>
-                Confidence: ${detection.confidence}%<br>
-                Status: ${detection.detected ? 'Found' : 'Searching...'}
-            `;
-        }
-
-        if (sensors) {
-            document.getElementById('sensor-data').innerHTML = `
-                <strong>📊 Sensors:</strong><br>
-                Temp: ${sensors.temperature}°C<br>
-                Water: ${sensors.waterLevel}<br>
-                Power: ${sensors.powerStatus}<br>
-                Vibration: ${sensors.vibration}
-            `;
-        }
-
-        if (advice) {
-            document.getElementById('ai-advice').innerHTML = `
-                <strong>🤖 AI Advice:</strong><br>
-                ${advice.recommendations.join('<br>')}
-            `;
-        }
-    }
-
-    // Mock AI Detection (replace with real Teachable Machine later)
-    detectObject() {
-        // Simulate kettle detection with random success
-        const scenarios = [
-            { object: 'Kettle', detected: true, confidence: 85 },
-            { object: 'Kettle', detected: true, confidence: 92 },
-            { object: 'Background', detected: false, confidence: 15 },
-            { object: 'Appliance', detected: true, confidence: 78 }
-        ];
-        
-        return scenarios[Math.floor(Math.random() * scenarios.length)];
-    }
-
-    drawDetectionBox(x, y, width, height, label, confidence) {
-        // Clear previous drawings
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw detection box
-        this.ctx.strokeStyle = '#00FF00';
-        this.ctx.lineWidth = 4;
-        this.ctx.strokeRect(x, y, width, height);
-        
-        // Draw label
-        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
-        this.ctx.fillRect(x, y - 35, 200, 30);
-        this.ctx.fillStyle = '#000000';
-        this.ctx.font = 'bold 16px Arial';
-        this.ctx.fillText(`${label} (${confidence}%)`, x + 5, y - 10);
-    }
-}
-
-// Mock Sensor System
-class MockSensorSystem {
-    constructor() {
-        this.data = {
-            temperature: 25,
-            waterLevel: 'unknown',
-            powerStatus: 'unknown',
-            vibration: 0
-        };
-        this.scenarios = [
-            {
-                name: 'Normal Operation',
-                temperature: 95,
-                waterLevel: 'adequate',
-                powerStatus: 'on',
-                vibration: 2,
-                issue: null,
-                advice: ['Kettle operating normally', 'Ready to serve hot water']
-            },
-            {
-                name: 'Power Issue',
-                temperature: 25,
-                waterLevel: 'adequate', 
-                powerStatus: 'off',
-                vibration: 0,
-                issue: 'No power detected',
-                advice: ['Check power cord connection', 'Verify outlet is working', 'Press power button']
-            },
-            {
-                name: 'Low Water',
-                temperature: 30,
-                waterLevel: 'low',
-                powerStatus: 'on',
-                vibration: 0,
-                issue: 'Insufficient water',
-                advice: ['Add water to minimum level', 'Check for leaks', 'Clean water reservoir']
-            },
-            {
-                name: 'Overheating',
-                temperature: 105,
-                waterLevel: 'adequate',
-                powerStatus: 'on',
-                vibration: 3,
-                issue: 'Temperature too high',
-                advice: ['Allow cooling period', 'Check for blockages', 'Reduce heating time']
-            }
-        ];
-    }
-
-    simulate() {
-        const scenario = this.scenarios[Math.floor(Math.random() * this.scenarios.length)];
-        this.data = { ...scenario };
-        return {
-            sensors: this.data,
-            diagnosis: {
-                status: scenario.issue ? 'issue_detected' : 'operational',
-                recommendations: scenario.advice,
-                priority: scenario.issue ? 'medium' : 'low'
-            }
-        };
-    }
-}
-
-// Global app instance
-let edgeLensApp;
-
-// Initialize app when page loads
-window.addEventListener('load', async () => {
-    edgeLensApp = new EdgeLensAR();
-    await edgeLensApp.init();
-});
-
-// Button handlers
-function startDetection() {
-    if (edgeLensApp.isDetecting) {
-        edgeLensApp.isDetecting = false;
-        document.getElementById('start-btn').textContent = 'Start Detection';
-        edgeLensApp.updateStatus('Detection stopped');
-        return;
-    }
-
-    edgeLensApp.isDetecting = true;
-    document.getElementById('start-btn').textContent = 'Stop Detection';
-    edgeLensApp.updateStatus('🔍 Scanning for objects...');
-
-    // Detection loop
-    const detectLoop = () => {
-        if (!edgeLensApp.isDetecting) return;
-
-        const detection = edgeLensApp.detectObject();
-        edgeLensApp.updateResults(detection, null, null);
-
-        if (detection.detected) {
-            // Draw detection box (center of screen for demo)
-            const centerX = edgeLensApp.canvas.width * 0.3;
-            const centerY = edgeLensApp.canvas.height * 0.3;
-            edgeLensApp.drawDetectionBox(centerX, centerY, 200, 150, detection.object, detection.confidence);
+            this.canvas.width = this.video.videoWidth || 640;
+            this.canvas.height = this.video.videoHeight || 480;
             
-            edgeLensApp.updateStatus('✅ Object detected - AR active');
+            this.showLiveMessage('🔍 Scanning for device QR codes...');
+            
+            // Auto-proceed after 5 seconds (simulate QR detection)
+            this.scanTimeout = setTimeout(() => {
+                this.handleQRDetected();
+            }, 5000);
+            
+        } catch (error) {
+            console.error('Camera error:', error);
+            this.showLiveMessage('❌ Camera access required. Please allow camera permission.');
+            this.closeScan();
         }
-
-        // Continue detection
-        setTimeout(detectLoop, 1000);
-    };
-
-    detectLoop();
-}
-
-function runSensors() {
-    edgeLensApp.updateStatus('📡 Reading sensors...');
+    }
     
-    setTimeout(() => {
-        const sensorResult = edgeLensApp.mockSensors.simulate();
-        edgeLensApp.updateResults(null, sensorResult.sensors, sensorResult.diagnosis);
-        edgeLensApp.updateStatus('✅ Sensor data updated');
-    }, 1500);
+    handleQRDetected() {
+        // Simulate QR code detection - you can add real jsQR scanning here
+        const simulatedQR = "DEVICE_KTL_001"; // Change this to test different scenarios
+        
+        if (this.isKnownDevice(simulatedQR)) {
+            document.getElementById('deviceId').value = simulatedQR;
+            this.showLiveMessage('✅ Smart device detected! Confirming device type...');
+            
+            setTimeout(() => {
+                this.confirmDevice();
+            }, 2000);
+        } else {
+            this.showLiveMessage('⚠️ Unknown device QR code detected. Please scan a supported device.');
+            
+            setTimeout(() => {
+                this.showLiveMessage('🔍 Scanning for device QR codes...');
+                // Continue scanning or restart
+                this.scanTimeout = setTimeout(() => {
+                    this.handleQRDetected(); // For demo, keep trying
+                }, 3000);
+            }, 3000);
+        }
+    }
+    
+    isKnownDevice(qrData) {
+        const knownDevices = ['DEVICE_KTL_001', 'KETTLE_001', 'PRINTER_001', 'ROUTER_001'];
+        return knownDevices.some(device => qrData.includes(device) || qrData.includes('DEVICE'));
+    }
+    
+    confirmDevice() {
+        this.currentStep = 'confirming';
+        this.showLiveMessage('🤖 Device confirmed! Running AI diagnostic analysis...');
+        
+        setTimeout(() => {
+            this.startDiagnostics();
+        }, 3000);
+    }
+    
+    startDiagnostics() {
+        this.currentStep = 'diagnosing';
+        
+        // Select random issue from the 4 specified
+        this.currentIssue = this.deviceIssues[Math.floor(Math.random() * this.deviceIssues.length)];
+        
+        this.showLiveMessage(`🔬 ${this.currentIssue.overlay}<br><br>${this.currentIssue.sensorData}`);
+        
+        setTimeout(() => {
+            this.showDiagnosisSummary();
+        }, 4000);
+    }
+    
+    showDiagnosisSummary() {
+        this.currentStep = 'questioning';
+        
+        const message = `
+            <strong>⚠️ Issue Detected:</strong> ${this.currentIssue.issue}<br><br>
+            <strong>Analysis:</strong> ${this.currentIssue.description}<br><br>
+            <strong>❓ User Confirmation:</strong><br>
+            ${this.currentIssue.question}
+        `;
+        
+        this.showLiveMessage(message, true);
+    }
+    
+    handleResponse(confirmed) {
+        document.getElementById('interactiveButtons').style.display = 'none';
+        
+        if (confirmed) {
+            this.showLiveMessage(`
+                ✅ <strong>Issue Confirmed!</strong><br><br>
+                <strong>Recommendation:</strong> Contact service technician immediately.<br>
+                <strong>Priority:</strong> ${this.getSeverity(this.currentIssue.issue)}<br><br>
+                Diagnostic complete - returning to home screen...
+            `);
+            
+            this.saveToHistory(true);
+            
+            setTimeout(() => {
+                this.closeScan();
+                this.showResult(`Diagnostic complete: ${this.currentIssue.issue}`, 'error');
+            }, 4000);
+            
+        } else {
+            this.showLiveMessage('🔄 Running additional diagnostic tests...');
+            
+            setTimeout(() => {
+                // Select different issue or show no issues
+                if (Math.random() > 0.3) {
+                    const otherIssues = this.deviceIssues.filter(issue => issue !== this.currentIssue);
+                    this.currentIssue = otherIssues[Math.floor(Math.random() * otherIssues.length)];
+                    this.showDiagnosisSummary();
+                } else {
+                    this.showLiveMessage('✅ No critical issues detected.<br><br>Device appears to be functioning normally.');
+                    this.saveToHistory(false);
+                    
+                    setTimeout(() => {
+                        this.closeScan();
+                        this.showResult('Diagnostic complete: No issues found', 'success');
+                    }, 3000);
+                }
+            }, 2000);
+        }
+    }
+    
+    getSeverity(issue) {
+        if (issue.includes('turn on') || issue.includes('shutoff')) return 'CRITICAL';
+        if (issue.includes('leak') || issue.includes('Overheating')) return 'HIGH';
+        return 'MODERATE';
+    }
+    
+    showLiveMessage(message, showButtons = false) {
+        this.liveMessage.innerHTML = message;
+        this.liveMessage.style.display = 'block';
+        
+        const buttons = document.getElementById('interactiveButtons');
+        buttons.style.display = showButtons ? 'flex' : 'none';
+    }
+    
+    saveToHistory(issueFound) {
+        const history = JSON.parse(localStorage.getItem('diagnosticHistory') || '[]');
+        const entry = {
+            deviceId: document.getElementById('deviceId').value || 'Unknown Device',
+            issue: issueFound ? this.currentIssue.issue : 'No issues detected',
+            severity: issueFound ? this.getSeverity(this.currentIssue.issue) : 'Good',
+            timestamp: new Date().toLocaleString()
+        };
+        
+        history.unshift(entry);
+        if (history.length > 10) history.splice(10);
+        
+        localStorage.setItem('diagnosticHistory', JSON.stringify(history));
+    }
+    
+    showHistory() {
+        const history = JSON.parse(localStorage.getItem('diagnosticHistory') || '[]');
+        
+        if (history.length === 0) {
+            this.showResult('📝 No diagnostic history available.', 'info');
+            return;
+        }
+        
+        const historyHtml = `
+            <div class="status-card">
+                <h3>📊 Diagnostic History</h3>
+                ${history.map(record => `
+                    <div style="background: rgba(0,0,0,0.05); padding: 15px; margin: 10px 0; border-radius: 10px; border-left: 4px solid ${this.getSeverityColor(record.severity)};">
+                        <strong>${record.issue}</strong><br>
+                        <small>Device: ${record.deviceId}</small><br>
+                        <small>Time: ${record.timestamp}</small><br>
+                        <span style="background: ${this.getSeverityColor(record.severity)}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em;">${record.severity}</span>
+                    </div>
+                `).join('')}
+                <button class="scan-btn" onclick="app.clearHistory()" style="background: linear-gradient(135deg, #dc3545, #c82333); margin-top: 15px;">
+                    🗑️ Clear History
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('resultContainer').innerHTML = historyHtml;
+    }
+    
+    getSeverityColor(severity) {
+        const colors = {
+            'CRITICAL': '#f44336',
+            'HIGH': '#ff9800', 
+            'MODERATE': '#ffc107',
+            'Good': '#4caf50'
+        };
+        return colors[severity] || '#666';
+    }
+    
+    clearHistory() {
+        localStorage.removeItem('diagnosticHistory');
+        this.showResult('✅ History cleared successfully!', 'success');
+    }
+    
+    closeScan() {
+        this.currentStep = 'idle';
+        
+        if (this.scanTimeout) {
+            clearTimeout(this.scanTimeout);
+            this.scanTimeout = null;
+        }
+        
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+        
+        this.cameraOverlay.style.display = 'none';
+        document.getElementById('scanBtn').disabled = false;
+        document.getElementById('deviceId').value = '';
+        
+        this.liveMessage.style.display = 'none';
+        document.getElementById('interactiveButtons').style.display = 'none';
+        
+        this.currentIssue = null;
+    }
+    
+    showResult(message, type) {
+        document.getElementById('resultContainer').innerHTML = 
+            `<div class="result-card ${type}">${message}</div>`;
+    }
 }
+
+// Initialize app
+let app;
+document.addEventListener('DOMContentLoaded', () => {
+    app = new EdgeLensApp();
+});
