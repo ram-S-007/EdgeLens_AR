@@ -71,7 +71,7 @@
             text-align: center;
         }
 
-        .scan-btn, .force-capture-btn {
+        .scan-btn {
             background: linear-gradient(135deg, #ff6b35, #f7931e);
             color: white;
             border: none;
@@ -85,12 +85,12 @@
             box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
         }
 
-        .scan-btn:hover, .force-capture-btn:hover {
+        .scan-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
         }
 
-        .scan-btn:disabled, .force-capture-btn:disabled {
+        .scan-btn:disabled {
             background: #ccc;
             cursor: not-allowed;
             transform: none;
@@ -115,6 +115,7 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.9);
             display: none;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -129,6 +130,7 @@
             position: relative;
             background: rgba(255, 255, 255, 0.1);
             overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .scanner-line {
@@ -136,7 +138,6 @@
             height: 2px;
             background: linear-gradient(90deg, transparent, #ff6b35, transparent);
             position: absolute;
-            top: 0;
             animation: scan 2s infinite;
         }
 
@@ -156,6 +157,30 @@
             border-radius: 5px;
             cursor: pointer;
             z-index: 1001;
+        }
+
+        .capture-btn {
+            background: linear-gradient(135deg, #4caf50, #388e3c);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 80%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+
+        .capture-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .capture-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
         }
 
         #video {
@@ -309,7 +334,7 @@
                 width: 200px;
                 height: 200px;
             }
-            .scan-btn, .force-capture-btn {
+            .scan-btn, .capture-btn {
                 font-size: 1em;
                 padding: 12px 20px;
             }
@@ -331,7 +356,6 @@
             <h3>🔍 QR Scanner</h3>
             <input type="text" class="qr-input" id="applianceId" placeholder="Appliance ID will appear here..." readonly>
             <button class="scan-btn" id="scanBtn">📱 Scan QR Code</button>
-            <button class="force-capture-btn" id="forceCaptureBtn" style="display: none;">🔍 Force Capture</button>
             <button class="history-btn" onclick="showHistory()">📊 View History</button>
         </div>
 
@@ -345,7 +369,9 @@
         <div class="scanner-frame">
             <div class="scanner-line"></div>
         </div>
-    </div>
+        <button class="capture-btn" id="captureBtn">📸 Capture</button>
+    </script>
+</div>
 
 <script>
 const apiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual Gemini API key
@@ -393,11 +419,24 @@ let video = document.getElementById('video');
 let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
 let stream = null;
-let lastCapture = null;
 
 // Logging function
 function log(message) {
     console.log(`[EdgeLens AR] ${new Date().toISOString()}: ${message}`);
+}
+
+// Enhance image data for better QR detection
+function enhanceImageData(imageData) {
+    const data = imageData.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        const threshold = 128; // Adjustable threshold for contrast
+        const binary = avg < threshold ? 0 : 255;
+        data[i] = binary;
+        data[i + 1] = binary;
+        data[i + 2] = binary;
+    }
+    return imageData;
 }
 
 // Start QR scanning
@@ -405,7 +444,6 @@ async function startQRScan() {
     log('Starting QR scan process...');
     document.getElementById('scannerOverlay').style.display = 'flex';
     document.getElementById('scanBtn').disabled = true;
-    document.getElementById('forceCaptureBtn').style.display = 'block';
 
     try {
         log('Requesting camera permission...');
@@ -427,30 +465,38 @@ async function startQRScan() {
     }
 }
 
-// Force capture QR
-function forceCapture() {
-    log('Force capture triggered...');
-    if (!isScanning || !video.readyState) return;
+// Capture photo and process QR
+function capturePhoto() {
+    log('Capture button pressed...');
+    if (!video.readyState) {
+        showResult('❌ Camera not ready. Please wait.', 'error');
+        return;
+    }
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    imageData = enhanceImageData(imageData);
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: 'attemptBoth',
         findBestPattern: true,
-        quietZoneSize: 5
+        quietZoneSize: 5,
+        maxScanAttempts: 15
     });
 
-    if (code) {
-        log(`Force capture detected QR: ${code.data}`);
+    if (code && code.data.trim() === specificQR) {
+        log(`QR code detected from capture: ${code.data}`);
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
         showResult('✅ QR detected: appliance', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
+    } else if (code) {
+        log(`Captured non-matching QR: ${code.data}`);
+        showResult(`❌ Detected QR: ${code.data} (not matching expected). Please try again with the correct QR.`, 'error');
     } else {
-        log('Force capture failed to detect QR.');
+        log('Capture failed to detect QR.');
         showResult('❌ No QR detected. Adjust position or clarity and try again.', 'error');
     }
 }
@@ -465,19 +511,19 @@ function scanQR() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    imageData = enhanceImageData(imageData);
     log(`Scanning frame: ${canvas.width}x${canvas.height} pixels...`);
 
     const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: 'attemptBoth',
         findBestPattern: true,
         quietZoneSize: 5,
-        maxScanAttempts: 10
+        maxScanAttempts: 15
     });
 
-    if (code && code.data.trim() === specificQR && (!lastCapture || Date.now() - lastCapture > 2000)) {
+    if (code && code.data.trim() === specificQR) {
         log(`QR code detected: ${code.data}`);
-        lastCapture = Date.now();
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
         showResult('✅ QR detected: appliance', 'success');
@@ -487,12 +533,30 @@ function scanQR() {
         const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
         const x = (canvas.width - frameSize) / 2;
         const y = (canvas.height - frameSize) / 2;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.lineWidth = 4;
         ctx.strokeStyle = '#ff6b35';
         ctx.strokeRect(x, y, frameSize, frameSize);
         requestAnimationFrame(scanQR);
     }
+}
+
+// Close scan
+function closeScan() {
+    log('Closing scan process...');
+    document.getElementById('scannerOverlay').style.display = 'none';
+    document.getElementById('scanBtn').disabled = false;
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+    video.style.display = 'none';
+    canvas.style.display = 'none';
+    isScanning = false;
+    arMode = false;
+    document.body.classList.remove('ar-mode');
+    document.getElementById('resultContainer').innerHTML = '';
+    document.getElementById('sensorContainer').innerHTML = '';
+    document.getElementById('aiContainer').innerHTML = '';
+    log('Scan process closed and reset.');
 }
 
 // Detect appliance using AI
@@ -798,7 +862,7 @@ window.onload = function() {
     log('Application initialized...');
     showResult('👋 Welcome! Press "Scan QR Code" to begin.', 'info');
     document.getElementById('scanBtn').addEventListener('click', startQRScan);
-    document.getElementById('forceCaptureBtn').addEventListener('click', forceCapture);
+    document.getElementById('captureBtn').addEventListener('click', capturePhoto);
 };
 </script>
 </body>
