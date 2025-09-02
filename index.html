@@ -2,75 +2,50 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>EdgeLens Agentic AR</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #000; color: #fff; overflow: hidden; height: 100vh;
-        }
-        #camera-container { 
-            position: relative; width: 100vw; height: 100vh; 
-        }
-        #camera { 
-            width: 100%; height: 100%; object-fit: cover; 
-        }
-        #overlay { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 10;
-        }
-        #controls { 
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 15px; z-index: 100;
-        }
-        button { 
-            padding: 15px 25px; background: #007AFF; border: none;
-            border-radius: 25px; color: white; font-weight: 600; cursor: pointer;
-            font-size: 14px; box-shadow: 0 4px 15px rgba(0,122,255,0.4);
-        }
-        #results { 
-            position: fixed; top: 20px; right: 20px; width: 280px;
-            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px;
-            font-size: 13px; z-index: 100; backdrop-filter: blur(10px);
-        }
-        .detection-box {
-            border: 3px solid #00FF00; position: absolute; z-index: 50;
-        }
-        .detection-label {
-            background: rgba(0,255,0,0.8); color: black; padding: 5px 10px;
-            position: absolute; top: -30px; left: 0; border-radius: 5px;
-            font-weight: bold; font-size: 12px;
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>EdgeLens AR Diagnostics</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js"></script>
 </head>
 <body>
-    <div id="camera-container">
-        <video id="camera" autoplay playsinline muted></video>
-        <canvas id="overlay"></canvas>
-        <div id="detection-overlay"></div>
-    </div>
+    <video id="video" playsinline muted></video>
+    <canvas id="canvas"></canvas>
     
-    <div id="controls">
-        <button id="start-btn" onclick="startDetection()">Start Detection</button>
-        <button id="sensor-btn" onclick="runSensors()">Check Sensors</button>
-    </div>
-    
-    <div id="results">
-        <div id="status">EdgeLens AR - Ready</div>
-        <div id="detection-info"></div>
-        <div id="sensor-data"></div>
-        <div id="ai-advice"></div>
+    <div class="container" id="mainContainer">
+        <div class="header">
+            <div class="appliance-icon">🔧</div>
+            <h1>EdgeLens AR Diagnostics</h1>
+            <p>AI-Powered Device Health Monitor</p>
+        </div>
+        
+        <div class="status-card">
+            <h3>🔍 Smart Device Scanner</h3>
+            <input type="text" class="qr-input" id="deviceId" placeholder="Device will be detected automatically..." readonly>
+            <button class="scan-btn" id="scanBtn">📱 Start Diagnostic Scan</button>
+            <button class="history-btn" id="historyBtn">📊 View History</button>
+        </div>
+        
+        <div id="resultContainer"></div>
     </div>
 
-    <!-- Load AI Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
-    
-    <!-- Your JavaScript Code -->
+    <!-- Camera Overlay -->
+    <div class="camera-overlay" id="cameraOverlay" style="display: none;">
+        <button class="close-camera" id="closeCamera">✕ Close</button>
+        
+        <div class="scanner-frame">
+            <div class="scanner-line"></div>
+        </div>
+        
+        <div id="liveMessage" class="live-message" style="display: none;">
+            Ready to scan - Point camera at QR code
+        </div>
+        
+        <div id="interactiveButtons" class="interactive-buttons" style="display: none;">
+            <button class="yes-btn" id="yesBtn">✓ Yes</button>
+            <button class="no-btn" id="noBtn">✗ No</button>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>
