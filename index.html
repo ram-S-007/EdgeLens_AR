@@ -371,12 +371,11 @@
             <div class="scanner-line"></div>
         </div>
         <button class="capture-btn" id="captureBtn">📸 Capture</button>
-    </script>
-</div>
+    </div>
 
 <script>
-const apiKey = 'AIzaSyB5NnM2PjjtyV7puN9DzU7p8_Vc43dUTzs'; // Replace with your actual Gemini API key
-const specificQR = 'kettle:diagnostic_mode'; // Replace with exact QR value from your QR code
+const apiKey = 'AIzaSyB5NnM2PjjtyV7puN9DzU7p8_Vc43dUTzs';
+const specificQR = 'kettle:diagnostic_mode';
 const applianceIssues = [
     {
         issue: "Won't turn on",
@@ -459,6 +458,14 @@ async function startQRScan() {
         isScanning = true;
         log('Camera feed active, initiating QR scan loop...');
         requestAnimationFrame(scanQR);
+
+        // Auto-capture after 5 seconds if no detection
+        setTimeout(() => {
+            if (isScanning) {
+                log('5-second timeout reached, triggering auto-capture...');
+                capturePhoto();
+            }
+        }, 5000);
     } catch (err) {
         log(`Camera error: ${err.name} - ${err.message}`);
         showResult(`❌ Camera error: ${err.message}. Please allow camera access in your browser settings.`, 'error');
@@ -468,7 +475,7 @@ async function startQRScan() {
 
 // Capture photo and process QR
 function capturePhoto() {
-    log('Capture button pressed...');
+    log('Capture button pressed or auto-triggered...');
     if (!video.readyState) {
         showResult('❌ Camera not ready. Please wait.', 'error');
         return;
@@ -490,7 +497,7 @@ function capturePhoto() {
         log(`QR code detected from capture: ${code.data}`);
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
-        showResult('✅ QR detected: appliance', 'success');
+        showResult('✅ QR detected: kettle', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
     } else if (code) {
@@ -527,7 +534,7 @@ function scanQR() {
         log(`QR code detected: ${code.data}`);
         isScanning = false;
         document.getElementById('applianceId').value = code.data;
-        showResult('✅ QR detected: appliance', 'success');
+        showResult('✅ QR detected: kettle', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
     } else {
@@ -569,13 +576,13 @@ async function detectAppliance() {
     log(`Image data prepared, size reduced to 0.6 quality`);
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: 'Does this image contain an appliance? Respond with only "Yes" or "No".' },
+                        { text: 'Does this image contain a kettle? Respond with only "Yes" or "No".' },
                         { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
                     ]
                 }]
@@ -591,13 +598,13 @@ async function detectAppliance() {
             applianceConfirmed = true;
             document.body.classList.add('ar-mode');
             arMode = true;
-            log('Appliance confirmed by AI.');
-            showResult('✅ Appliance confirmed! Running diagnostics...', 'success');
+            log('Kettle confirmed by AI.');
+            showResult('✅ Kettle confirmed! Running diagnostics...', 'success');
             setTimeout(runDiagnostics, 1500);
             requestAnimationFrame(arOverlayLoop);
         } else {
-            log('No appliance detected by AI.');
-            showResult('❌ No appliance detected. Please point the camera at an appliance.', 'error');
+            log('No kettle detected by AI.');
+            showResult('❌ No kettle detected. Please point the camera at a kettle.', 'error');
             closeScan();
         }
     } catch (error) {
@@ -621,13 +628,13 @@ async function arOverlayLoop() {
     log('Rendering AR overlay frame...');
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: 'Locate the appliance in this image and provide bounding box coordinates in the format: [x, y, width, height]. If no appliance is found, return [].' },
+                        { text: 'Locate the kettle in this image and provide bounding box coordinates in the format: [x, y, width, height]. If no kettle is found, return [].' },
                         { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
                     ]
                 }]
@@ -662,13 +669,13 @@ async function runDiagnostics() {
     showResult('🔄 Analyzing sensor data with AI...', 'info');
 
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: 'Generate a random appliance issue with description, sensor check, normal range, symptom, and AR overlay instruction. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}'
+                        text: 'Generate a random kettle issue with description, sensor check, normal range, symptom, and AR overlay instruction. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}'
                     }]
                 }]
             })
