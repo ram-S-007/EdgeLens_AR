@@ -14,44 +14,106 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #000;
-            color: #fff;
-            height: 100vh;
-            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
             position: relative;
+            overflow: hidden;
         }
 
-        #video {
-            width: 100%;
-            height: 100vh;
-            object-fit: cover;
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 0;
-        }
-
-        #canvas {
-            width: 100%;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            position: relative;
             z-index: 1;
-            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #ff6b35;
+            margin-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .appliance-icon {
+            font-size: 3em;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+        }
+
+        .scan-btn {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .scan-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .scan-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .qr-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-bottom: 10px;
+            text-align: center;
         }
 
         .scanner-overlay {
-            width: 100%;
-            height: 100vh;
-            position: absolute;
+            position: fixed;
             top: 0;
             left: 0;
-            display: flex;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2;
+            z-index: 1000;
         }
 
         .scanner-frame {
@@ -86,30 +148,44 @@
             padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
-            z-index: 3;
         }
 
-        .status-text {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-size: 1.1em;
-            z-index: 3;
+        #video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            z-index: 0;
         }
 
-        .diagnostic-overlay {
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .ar-mode .container {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 20px;
+            max-width: none;
+            min-height: auto;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.8);
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
-            z-index: 3;
+        }
+
+        .ar-mode .header {
             display: none;
         }
 
@@ -236,19 +312,33 @@
     </style>
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
+    <video id="video" playsinline></video>
     <canvas id="canvas"></canvas>
-    <div class="scanner-overlay" id="scannerOverlay">
-        <button class="close-scanner" id="closeScanner">✕ Close</button>
-        <div class="scanner-frame">
-            <div class="scanner-line"></div>
+
+    <div class="container">
+        <div class="header">
+            <div class="appliance-icon">⚙️</div>
+            <h1>Smart Appliance Diagnostic</h1>
+            <p>AI-Powered Appliance Health Monitor</p>
         </div>
-        <div class="status-text" id="scanStatus">Scanning for QR code...</div>
-    </div>
-    <div class="diagnostic-overlay" id="diagnosticOverlay">
+
+        <div class="status-card">
+            <h3>🔍 QR Scanner</h3>
+            <input type="text" class="qr-input" id="applianceId" placeholder="Appliance ID will appear here..." readonly>
+            <button class="scan-btn" id="scanBtn">📱 Scan QR Code</button>
+            <button class="history-btn" onclick="showHistory()">📊 View History</button>
+        </div>
+
         <div id="resultContainer"></div>
         <div id="sensorContainer"></div>
         <div id="aiContainer"></div>
+    </div>
+
+    <div class="scanner-overlay" id="scannerOverlay">
+        <button class="close-scanner" onclick="closeScan()">✕ Close</button>
+        <div class="scanner-frame">
+            <div class="scanner-line"></div>
+        </div>
     </div>
 
 <script>
@@ -298,24 +388,29 @@ let canvas = document.getElementById('canvas');
 let ctx = canvas.getContext('2d');
 let stream = null;
 
-async function startScanning() {
+async function startQRScan() {
+    document.getElementById('scannerOverlay').style.display = 'flex';
+    document.getElementById('scanBtn').disabled = true;
+
     try {
         stream = await navigator.mediaDevices.getUserMedia({
             video: { facingMode: 'environment' }
         });
         video.srcObject = stream;
         video.play();
-        document.getElementById('scannerOverlay').style.display = 'flex';
+        video.style.display = 'block';
+        canvas.style.display = 'block';
         isScanning = true;
         requestAnimationFrame(scanQR);
     } catch (err) {
-        updateStatus(`❌ Camera error: ${err.message}. Please allow camera access.`, 'error');
+        showResult(`❌ Camera error: ${err.message}. Please allow camera access.`, 'error');
+        closeScan();
     }
 }
 
 function closeScan() {
     document.getElementById('scannerOverlay').style.display = 'none';
-    document.getElementById('diagnosticOverlay').style.display = 'none';
+    document.getElementById('scanBtn').disabled = false;
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
     }
@@ -323,6 +418,10 @@ function closeScan() {
     canvas.style.display = 'none';
     isScanning = false;
     arMode = false;
+    document.body.classList.remove('ar-mode');
+    document.getElementById('resultContainer').innerHTML = '';
+    document.getElementById('sensorContainer').innerHTML = '';
+    document.getElementById('aiContainer').innerHTML = '';
 }
 
 function scanQR() {
@@ -335,11 +434,15 @@ function scanQR() {
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        inversionAttempts: 'attemptBoth'
+    });
 
     if (code && code.data.trim() === specificQR) {
         isScanning = false;
-        updateStatus('✅ QR detected: appliance', 'success');
+        document.getElementById('applianceId').value = code.data;
+        showResult('✅ QR detected: appliance', 'success');
+        document.getElementById('scannerOverlay').style.display = 'none';
         detectAppliance();
     } else {
         const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
@@ -353,7 +456,7 @@ function scanQR() {
 }
 
 async function detectAppliance() {
-    updateStatus('🔄 Analyzing camera feed with AI...', 'info');
+    showResult('🔄 Analyzing camera feed with AI...', 'info');
 
     const base64Image = canvas.toDataURL('image/jpeg', 0.7).split(',')[1];
 
@@ -376,18 +479,19 @@ async function detectAppliance() {
 
         if (detection === 'yes') {
             applianceConfirmed = true;
+            document.body.classList.add('ar-mode');
             arMode = true;
-            updateStatus('✅ Appliance confirmed! Running diagnostics...', 'success');
+            showResult('✅ Appliance confirmed! Running diagnostics...', 'success');
             setTimeout(runDiagnostics, 1500);
             requestAnimationFrame(arOverlayLoop);
         } else {
-            updateStatus('❌ No appliance detected. Please point the camera at an appliance.', 'error');
-            setTimeout(startScanning, 2000);
+            showResult('❌ No appliance detected. Please point the camera at an appliance.', 'error');
+            closeScan();
         }
     } catch (error) {
         console.error('Detection error:', error);
-        updateStatus('❌ Failed to analyze image. Retrying...', 'error');
-        setTimeout(startScanning, 2000);
+        showResult('❌ Failed to analyze image. Please try again.', 'error');
+        closeScan();
     }
 }
 
@@ -437,7 +541,7 @@ async function arOverlayLoop() {
 }
 
 async function runDiagnostics() {
-    updateStatus('🔄 Analyzing sensor data with AI...', 'info');
+    showResult('🔄 Analyzing sensor data with AI...', 'info');
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
@@ -475,18 +579,20 @@ function showSensorReadings() {
     const sensorData = generateSensorData();
 
     const sensorHtml = `
-        <div class="sensor-grid">
-            ${Object.entries(sensorData).map(([key, value]) => `
-                <div class="sensor-reading ${getSensorStatus(key, value)}">
-                    <div class="sensor-label">${formatSensorName(key)}</div>
-                    <div class="sensor-value">${value}</div>
-                </div>
-            `).join('')}
+        <div class="status-card slide-up">
+            <h3>📊 Live Sensor Readings</h3>
+            <div class="sensor-grid">
+                ${Object.entries(sensorData).map(([key, value]) => `
+                    <div class="sensor-reading ${getSensorStatus(key, value)}">
+                        <div class="sensor-label">${formatSensorName(key)}</div>
+                        <div class="sensor-value">${value}</div>
+                    </div>
+                `).join('')}
+            </div>
         </div>
     `;
 
     document.getElementById('sensorContainer').innerHTML = sensorHtml;
-    document.getElementById('diagnosticOverlay').style.display = 'block';
 }
 
 function generateSensorData() {
@@ -539,7 +645,7 @@ function formatSensorName(name) {
 
 async function showAISummary() {
     const aiHtml = `
-        <div class="ai-summary">
+        <div class="ai-summary fade-in">
             <h3>🤖 AI Diagnostic Summary</h3>
             <p><strong>Detected Issue:</strong> ${currentIssue.issue}</p>
             <p><strong>Analysis:</strong> ${currentIssue.description}</p>
@@ -547,9 +653,9 @@ async function showAISummary() {
             <p><strong>Recommendation:</strong> This issue requires attention. Follow these steps:</p>
             <ol>
                 <li>Verify power connection and outlet functionality.</li>
-                <li>Check sensor readings against normal ranges.</li>
-                <li>Clean or inspect affected components as indicated.</li>
-                <li>Contact support if the problem persists.</li>
+                <li>Check sensor readings against normal ranges (${currentIssue.normalRange}).</li>
+                <li>Inspect or clean components as indicated (${currentIssue.arOverlay}).</li>
+                <li>Contact support if unresolved.</li>
             </ol>
         </div>
     `;
@@ -560,7 +666,7 @@ async function showAISummary() {
 function saveToHistory() {
     const history = JSON.parse(localStorage.getItem('applianceHistory') || '[]');
     history.unshift({
-        applianceId: specificQR,
+        applianceId: document.getElementById('applianceId').value,
         issue: currentIssue.issue,
         timestamp: new Date().toLocaleString(),
         sensorData: generateSensorData()
@@ -577,12 +683,12 @@ function showHistory() {
     const history = JSON.parse(localStorage.getItem('applianceHistory') || '[]');
 
     if (history.length === 0) {
-        updateStatus('📝 No diagnostic history available yet.', 'info');
+        showResult('📝 No diagnostic history available yet.', 'info');
         return;
     }
 
     const historyHtml = `
-        <div class="result-card info">
+        <div class="status-card fade-in">
             <h3>📊 Diagnostic History</h3>
             ${history.map(record => `
                 <div style="background: rgba(0,0,0,0.05); padding: 10px; margin: 8px 0; border-radius: 8px;">
@@ -591,7 +697,7 @@ function showHistory() {
                     <small>Time: ${record.timestamp}</small>
                 </div>
             `).join('')}
-            <button class="scan-btn" onclick="clearHistory()" style="background: #dc3545; margin-top: 10px; width: 100%;">
+            <button class="scan-btn" onclick="clearHistory()" style="background: #dc3545; margin-top: 10px;">
                 🗑️ Clear History
             </button>
         </div>
@@ -602,22 +708,23 @@ function showHistory() {
 
 function clearHistory() {
     localStorage.removeItem('applianceHistory');
-    updateStatus('✅ History cleared successfully!', 'success');
+    showResult('✅ History cleared successfully!', 'success');
 }
 
-function updateStatus(message, type) {
+function showResult(message, type) {
     const resultHtml = `
-        <div class="result-card ${type}">
+        <div class="result-card ${type} fade-in">
             <div>${message}</div>
         </div>
     `;
+
     document.getElementById('resultContainer').innerHTML = resultHtml;
 }
 
 // Initialize
 window.onload = function() {
-    startScanning();
-    document.getElementById('closeScanner').addEventListener('click', closeScan);
+    showResult('👋 Welcome! Press "Scan QR Code" to begin.', 'info');
+    document.getElementById('scanBtn').addEventListener('click', startQRScan);
 };
 </script>
 </body>
