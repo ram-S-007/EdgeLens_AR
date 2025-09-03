@@ -307,6 +307,49 @@
             100% { transform: rotate(360deg); }
         }
 
+        .question-form {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+            text-align: left;
+        }
+
+        .question-form label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+
+        .question-form input[type="text"],
+        .question-form select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .question-form button {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .question-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+
         @media (max-width: 480px) {
             .container {
                 padding: 10px;
@@ -343,6 +386,7 @@
         <div id="resultContainer"></div>
         <div id="sensorContainer"></div>
         <div id="aiContainer"></div>
+        <div id="questionContainer" style="display: none;"></div>
     </div>
 
     <div class="scanner-overlay" id="scannerOverlay">
@@ -447,6 +491,7 @@ function closeOverlay() {
     document.getElementById('resultContainer').innerHTML = '';
     document.getElementById('sensorContainer').innerHTML = '';
     document.getElementById('aiContainer').innerHTML = '';
+    document.getElementById('questionContainer').style.display = 'none';
     log('Overlay process closed and reset.');
 }
 
@@ -466,7 +511,7 @@ function scanLoop(timestamp) {
         isScanning = false;
         showResult('✅ Kettle QR Detected', 'success');
         closeOverlay();
-        runDiagnostics();
+        showQuestions();
         return; // Exit the loop after triggering
     }
 
@@ -478,6 +523,48 @@ function scanLoop(timestamp) {
     ctx.strokeStyle = '#ff6b35';
     ctx.strokeRect(x, y, frameSize, frameSize);
     requestAnimationFrame(scanLoop);
+}
+
+// Show diagnostic questions
+function showQuestions() {
+    log('Displaying diagnostic questions...');
+    const questionsHtml = `
+        <div class="question-form">
+            <h3>📝 Answer These Questions</h3>
+            <label>1. Is the kettle plugged in? <input type="text" id="q1" placeholder="Yes/No"></label>
+            <label>2. Does it heat up at all? <input type="text" id="q2" placeholder="Yes/No"></label>
+            <label>3. Is there any visible damage? <input type="text" id="q3" placeholder="Yes/No"></label>
+            <label>4. Has it been cleaned recently? <input type="text" id="q4" placeholder="Yes/No"></label>
+            <label>5. Is the water level normal? <select id="q5">
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+            </select></label>
+            <button onclick="submitQuestions()">Submit Answers</button>
+        </div>
+    `;
+    document.getElementById('questionContainer').innerHTML = questionsHtml;
+    document.getElementById('questionContainer').style.display = 'block';
+}
+
+// Submit questions and run diagnostics
+function submitQuestions() {
+    log('Submitting diagnostic questions...');
+    const answers = {
+        q1: document.getElementById('q1').value.toLowerCase(),
+        q2: document.getElementById('q2').value.toLowerCase(),
+        q3: document.getElementById('q3').value.toLowerCase(),
+        q4: document.getElementById('q4').value.toLowerCase(),
+        q5: document.getElementById('q5').value
+    };
+
+    if (Object.values(answers).some(answer => !answer)) {
+        showResult('❌ Please answer all questions.', 'error');
+        return;
+    }
+
+    log('Answers submitted: ', answers);
+    document.getElementById('questionContainer').style.display = 'none';
+    runDiagnostics();
 }
 
 // Run diagnostics immediately
@@ -492,7 +579,7 @@ async function runDiagnostics() {
             body: JSON.stringify({
                 contents: [{
                     parts: [{
-                        text: 'Generate a random kettle issue with description, sensor check, normal range, symptom, and AR overlay instruction. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}'
+                        text: 'Generate a random kettle issue with description, sensor check, normal range, symptom, and AR overlay instruction based on user input. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}. User input: Is the kettle plugged in? ' + answers.q1 + ', Does it heat up? ' + answers.q2 + ', Visible damage? ' + answers.q3 + ', Recently cleaned? ' + answers.q4 + ', Water level normal? ' + answers.q5
                     }]
                 }]
             })
