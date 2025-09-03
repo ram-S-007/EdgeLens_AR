@@ -8,7 +8,7 @@
     <link rel="manifest" href="/manifest.json">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js');
+            navigator.serviceWorker.register('/service-worker.js').catch(err => console.error('Service Worker registration failed:', err));
         }
     </script>
     <style>
@@ -353,7 +353,7 @@
     </div>
 
 <script>
-const apiKey = 'AIzaSyB5NnM2PjjtyV7puN9DzU7p8_Vc43dUTzs'; // Replace with your actual Gemini API key
+const apiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual Gemini API key
 const applianceIssues = [
     {
         issue: "Won't turn on",
@@ -426,7 +426,7 @@ async function startCameraOverlay() {
         requestAnimationFrame(scanLoop);
     } catch (err) {
         log(`Camera error: ${err.name} - ${err.message}`);
-        showResult(`❌ Camera error: ${err.message}. Please allow camera access in your browser settings.`, 'error');
+        showResult(`❌ Camera error: ${err.message}. Please allow camera access or check device.`, 'error');
         closeOverlay();
     }
 }
@@ -437,10 +437,7 @@ function closeOverlay() {
     document.getElementById('scannerOverlay').style.display = 'none';
     document.getElementById('scanBtn').disabled = false;
     if (stream) {
-        stream.getTracks().forEach(track => {
-            log(`Stopping track: ${track.kind}`);
-            track.stop();
-        });
+        stream.getTracks().forEach(track => track.stop());
     }
     video.style.display = 'none';
     canvas.style.display = 'none';
@@ -454,7 +451,7 @@ function closeOverlay() {
 }
 
 // Scan loop with 5-second auto-trigger
-function scanLoop() {
+function scanLoop(timestamp) {
     if (!isScanning || video.readyState !== video.HAVE_ENOUGH_DATA) {
         requestAnimationFrame(scanLoop);
         return;
@@ -463,26 +460,24 @@ function scanLoop() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    log(`Scanning frame: ${canvas.width}x${canvas.height} pixels...`);
 
     if (Date.now() - scanStartTime >= 5000) {
-        log('5-second timeout reached, starting diagnostics...');
+        log('5-second timeout reached, triggering kettle diagnostics...');
         isScanning = false;
-        document.getElementById('applianceId').value = 'auto-triggered';
         showResult('✅ Kettle QR Detected', 'success');
-        document.getElementById('scannerOverlay').style.display = 'none';
-        runDiagnostics(); // Immediately begin kettle diagnosis
-    } else {
-        const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
-        const x = (canvas.width - frameSize) / 2;
-        const y = (canvas.height - frameSize) / 2;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#ff6b35';
-        ctx.strokeRect(x, y, frameSize, frameSize);
-        requestAnimationFrame(scanLoop);
+        closeOverlay();
+        runDiagnostics();
+        return; // Exit the loop after triggering
     }
+
+    const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
+    const x = (canvas.width - frameSize) / 2;
+    const y = (canvas.height - frameSize) / 2;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#ff6b35';
+    ctx.strokeRect(x, y, frameSize, frameSize);
+    requestAnimationFrame(scanLoop);
 }
 
 // Run diagnostics immediately
@@ -533,7 +528,7 @@ async function runDiagnostics() {
 
 // AR overlay loop
 async function arOverlayLoop() {
-    if (!arMode || video.readyState !== video.HAVE_ENOUGH_DATA) {
+    if (!arMode || !video.srcObject) {
         requestAnimationFrame(arOverlayLoop);
         return;
     }
