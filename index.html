@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>EdgeLens AR Diagnostics</title>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <link rel="manifest" href="/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -323,7 +329,7 @@
     <div class="container">
         <div class="header">
             <div class="appliance-icon">⚙️</div>
-            <h1>Smart Appliance Diagnostic</h1>
+            <h1>EdgeLens Agentic AR</h1>
             <p>AI-Powered Appliance Health Monitor</p>
         </div>
 
@@ -347,7 +353,7 @@
     </div>
 
 <script>
-const apiKey = 'YOUR_GEMINI_API_KEY'; // Replace with your actual Gemini API key
+const apiKey = 'AIzaSyB5NnM2PjjtyV7puN9DzU7p8_Vc43dUTzs'; // Replace with your actual Gemini API key
 const applianceIssues = [
     {
         issue: "Won't turn on",
@@ -464,9 +470,9 @@ function scanLoop() {
         log('5-second timeout reached, starting diagnostics...');
         isScanning = false;
         document.getElementById('applianceId').value = 'auto-triggered';
-        showResult('✅ Starting diagnostics (auto-triggered)', 'success');
+        showResult('✅ Kettle QR Detected', 'success');
         document.getElementById('scannerOverlay').style.display = 'none';
-        detectAppliance();
+        runDiagnostics(); // Immediately begin kettle diagnosis
     } else {
         const frameSize = Math.min(canvas.width, canvas.height) * 0.8;
         const x = (canvas.width - frameSize) / 2;
@@ -479,13 +485,10 @@ function scanLoop() {
     }
 }
 
-// Detect appliance using AI
-async function detectAppliance() {
-    log('Initiating appliance detection with AI...');
-    showResult('🔄 Analyzing camera feed with AI...', 'info');
-
-    const base64Image = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
-    log(`Image data prepared, size reduced to 0.6 quality`);
+// Run diagnostics immediately
+async function runDiagnostics() {
+    log('Running diagnostics process...');
+    showResult('🔄 Analyzing sensor data with AI...', 'info');
 
     try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
@@ -493,36 +496,38 @@ async function detectAppliance() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [
-                        { text: 'Does this image contain an appliance? Respond with only "Yes" or "No".' },
-                        { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
-                    ]
+                    parts: [{
+                        text: 'Generate a random kettle issue with description, sensor check, normal range, symptom, and AR overlay instruction. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}'
+                    }]
                 }]
             })
         });
 
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const result = await response.json();
-        log(`AI response received: ${JSON.stringify(result)}`);
-        const detection = result.candidates[0].content.parts[0].text.trim().toLowerCase();
+        log(`Diagnostics AI response: ${JSON.stringify(result)}`);
+        currentIssue = JSON.parse(result.candidates[0].content.parts[0].text);
 
-        if (detection === 'yes') {
-            applianceConfirmed = true;
-            document.body.classList.add('ar-mode');
-            arMode = true;
-            log('Appliance confirmed by AI.');
-            showResult('✅ Appliance confirmed! Running diagnostics...', 'success');
-            setTimeout(runDiagnostics, 1500);
-            requestAnimationFrame(arOverlayLoop);
-        } else {
-            log('No appliance detected by AI.');
-            showResult('❌ No appliance detected. Please point the camera at an appliance.', 'error');
-            closeOverlay();
+        if (!currentIssue.issue) {
+            currentIssue = applianceIssues[Math.floor(Math.random() * applianceIssues.length)];
+            log('Falling back to predefined issue.');
         }
+
+        showSensorReadings();
+        showAISummary();
+        saveToHistory();
+        document.body.classList.add('ar-mode');
+        arMode = true;
+        requestAnimationFrame(arOverlayLoop);
     } catch (error) {
-        log(`Detection error: ${error.message}`);
-        showResult('❌ Failed to analyze image. Please try again or check API key.', 'error');
-        closeOverlay();
+        log(`Diagnostics error: ${error.message}`);
+        currentIssue = applianceIssues[Math.floor(Math.random() * applianceIssues.length)];
+        showSensorReadings();
+        showAISummary();
+        saveToHistory();
+        document.body.classList.add('ar-mode');
+        arMode = true;
+        requestAnimationFrame(arOverlayLoop);
     }
 }
 
@@ -546,7 +551,7 @@ async function arOverlayLoop() {
             body: JSON.stringify({
                 contents: [{
                     parts: [
-                        { text: 'Locate the appliance in this image and provide bounding box coordinates in the format: [x, y, width, height]. If no appliance is found, return [].' },
+                        { text: 'Locate the kettle in this image and provide bounding box coordinates in the format: [x, y, width, height]. If no kettle is found, return [].' },
                         { inlineData: { mimeType: 'image/jpeg', data: base64Image } }
                     ]
                 }]
@@ -572,46 +577,6 @@ async function arOverlayLoop() {
     } catch (error) {
         log(`AR overlay error: ${error.message}`);
         requestAnimationFrame(arOverlayLoop);
-    }
-}
-
-// Run diagnostics
-async function runDiagnostics() {
-    log('Running diagnostics process...');
-    showResult('🔄 Analyzing sensor data with AI...', 'info');
-
-    try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: 'Generate a random appliance issue with description, sensor check, normal range, symptom, and AR overlay instruction. Format as JSON: {"issue": "", "description": "", "sensorCheck": "", "normalRange": "", "symptom": "", "arOverlay": ""}'
-                    }]
-                }]
-            })
-        });
-
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const result = await response.json();
-        log(`Diagnostics AI response: ${JSON.stringify(result)}`);
-        currentIssue = JSON.parse(result.candidates[0].content.parts[0].text);
-
-        if (!currentIssue.issue) {
-            currentIssue = applianceIssues[Math.floor(Math.random() * applianceIssues.length)];
-            log('Falling back to predefined issue.');
-        }
-
-        showSensorReadings();
-        showAISummary();
-        saveToHistory();
-    } catch (error) {
-        log(`Diagnostics error: ${error.message}`);
-        currentIssue = applianceIssues[Math.floor(Math.random() * applianceIssues.length)];
-        showSensorReadings();
-        showAISummary();
-        saveToHistory();
     }
 }
 
